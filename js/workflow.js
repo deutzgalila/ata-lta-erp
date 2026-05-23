@@ -578,7 +578,10 @@ const Workflow = {
       tbody.appendChild(tr);
     });
     taskTable.appendChild(tbody);
-    container.appendChild(taskTable);
+    
+    const tableWrapper = el('div', { class: 'table-responsive' });
+    tableWrapper.appendChild(taskTable);
+    container.appendChild(tableWrapper);
 
     if (tasks.length > 0) {
       if (!this.selectedTaskId || !tasks.find(t => t.id === this.selectedTaskId)) {

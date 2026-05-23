@@ -72,12 +72,12 @@ const Clients = {
       const row = el('tr');
       row.appendChild(el('td', { text: c.name }));
       row.appendChild(el('td', { text: c.tin }));
-      row.appendChild(el('td', { text: c.contactPerson || '—' }));
+      row.appendChild(el('td', { text: c.contactPerson || c.contact || '—' }));
       const badge = el('span', { class: 'badge badge-' + (c.entity === 'ATA' ? 'info' : 'success'), text: c.entity });
       const tdEntity = el('td');
       tdEntity.appendChild(badge);
       row.appendChild(tdEntity);
-      row.appendChild(el('td', { text: c.retainer ? 'Yes' : 'No' }));
+      row.appendChild(el('td', { text: (c.retainer || c.isRetainer) ? 'Yes' : 'No' }));
       const actions = el('td');
       const editBtn = el('button', { class: 'btn btn-ghost btn-sm', text: 'Edit' });
       editBtn.addEventListener('click', () => this.showForm(c.id));
@@ -152,7 +152,7 @@ const Clients = {
     const retainerGroup = el('div', { class: 'form-group' });
     const retainerLabel = el('label', { class: 'checkbox-label' });
     const retainerCb = el('input', { type: 'checkbox', name: 'retainer' });
-    if (client && client.retainer) retainerCb.checked = true;
+    if (client && (client.retainer || client.isRetainer)) retainerCb.checked = true;
     retainerLabel.appendChild(retainerCb);
     retainerLabel.appendChild(document.createTextNode(' This client is on retainer'));
     retainerGroup.appendChild(retainerLabel);

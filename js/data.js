@@ -17,7 +17,7 @@ function makeId(prefix, num) {
 }
 
 const seedData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
 
   users: [
     {
@@ -137,96 +137,96 @@ const seedData = {
       id: makeId('c', 1),
       name: 'Manila Fresh Foods Inc.',
       tin: '123-456-789-0001',
-      contact: 'Juan dela Cruz',
+      contactPerson: 'Juan dela Cruz',
       phone: '0917-123-4567',
       email: 'juan.dcruz@manilafresh.ph',
       address: '123 Mabini St, Ermita, Manila, Metro Manila',
       entity: 'ATA',
-      isRetainer: true,
+      retainer: true,
       createdAt: now
     },
     {
       id: makeId('c', 2),
       name: 'Cebu Trading Co.',
       tin: '234-567-890-0002',
-      contact: 'Maria Santos',
+      contactPerson: 'Maria Santos',
       phone: '0918-234-5678',
       email: 'maria.santos@cebutrade.ph',
       address: '456 Osmena Blvd, Cebu City, Cebu',
       entity: 'ATA',
-      isRetainer: false,
+      retainer: false,
       createdAt: now
     },
     {
       id: makeId('c', 3),
       name: 'Davao Agri Ventures',
       tin: '345-678-901-0003',
-      contact: 'Ricardo Reyes',
+      contactPerson: 'Ricardo Reyes',
       phone: '0919-345-6789',
       email: 'ricardo.reyes@davaoagri.ph',
       address: '789 Roxas Ave, Davao City, Davao del Sur',
       entity: 'ATA',
-      isRetainer: true,
+      retainer: true,
       createdAt: now
     },
     {
       id: makeId('c', 4),
       name: 'Iloilo Manufacturing Corp.',
       tin: '456-789-012-0004',
-      contact: 'Ana Lim',
+      contactPerson: 'Ana Lim',
       phone: '0920-456-7890',
       email: 'ana.lim@iloilomfg.ph',
       address: '321 Magsaysay St, Iloilo City, Iloilo',
       entity: 'ATA',
-      isRetainer: false,
+      retainer: false,
       createdAt: now
     },
     {
       id: makeId('c', 5),
       name: 'Batangas Industrial Group',
       tin: '567-890-123-0005',
-      contact: 'Pedro Garcia',
+      contactPerson: 'Pedro Garcia',
       phone: '0921-567-8901',
       email: 'pedro.garcia@batindustrial.ph',
       address: '654 JP Laurel Hwy, Tanauan, Batangas',
       entity: 'LTA',
-      isRetainer: true,
+      retainer: true,
       createdAt: now
     },
     {
       id: makeId('c', 6),
       name: 'Laguna Logistics Ltd.',
       tin: '678-901-234-0006',
-      contact: 'Elena Torres',
+      contactPerson: 'Elena Torres',
       phone: '0922-678-9012',
       email: 'elena.torres@lagunalogistics.ph',
       address: '987 National Hwy, Calamba, Laguna',
       entity: 'LTA',
-      isRetainer: false,
+      retainer: false,
       createdAt: now
     },
     {
       id: makeId('c', 7),
       name: 'Pampanga Retailers Inc.',
       tin: '789-012-345-0007',
-      contact: 'Carlos Mendoza',
+      contactPerson: 'Carlos Mendoza',
       phone: '0923-789-0123',
       email: 'carlos.mendoza@pampangaretail.ph',
       address: '147 McArthur Hwy, Angeles, Pampanga',
       entity: 'LTA',
-      isRetainer: true,
+      retainer: true,
       createdAt: now
     },
     {
       id: makeId('c', 8),
       name: 'Tagaytay Hospitality Group',
       tin: '890-123-456-0008',
-      contact: 'Sofia Ramos',
+      contactPerson: 'Sofia Ramos',
       phone: '0924-890-1234',
       email: 'sofia.ramos@tagaytayhospitality.ph',
       address: '258 Aguinaldo Hwy, Tagaytay, Cavite',
       entity: 'LTA',
-      isRetainer: false,
+      retainer: false,
       createdAt: now
     }
   ],
@@ -314,8 +314,8 @@ const seedData = {
       title: 'Gather source documents',
       description: 'Collect all receipts, invoices, and financial records from client.',
       status: 'Completed',
-      assignedTo: makeId('u', 4),
-      dependencies: [],
+      assigneeId: makeId('u', 4),
+      predecessors: [],
       dueDate: lastMonth,
       createdAt: lastMonth,
       updatedAt: now
@@ -326,8 +326,8 @@ const seedData = {
       title: 'Encode trial balance',
       description: 'Input client trial balance into accounting software.',
       status: 'Completed',
-      assignedTo: makeId('u', 4),
-      dependencies: [makeId('t', 1)],
+      assigneeId: makeId('u', 4),
+      predecessors: [makeId('t', 1)],
       dueDate: lastWeek,
       createdAt: lastMonth,
       updatedAt: now
@@ -338,8 +338,8 @@ const seedData = {
       title: 'Prepare tax schedules',
       description: 'Build detailed tax computation schedules and supporting docs.',
       status: 'In Progress',
-      assignedTo: makeId('u', 4),
-      dependencies: [makeId('t', 2)],
+      assigneeId: makeId('u', 4),
+      predecessors: [makeId('t', 2)],
       dueDate: today,
       createdAt: lastMonth,
       updatedAt: now
@@ -351,8 +351,8 @@ const seedData = {
       title: 'Reconcile bank statements',
       description: 'Match bank transactions with internal records.',
       status: 'Completed',
-      assignedTo: makeId('u', 4),
-      dependencies: [],
+      assigneeId: makeId('u', 4),
+      predecessors: [],
       dueDate: lastMonth,
       createdAt: lastMonth,
       updatedAt: now
@@ -363,8 +363,8 @@ const seedData = {
       title: 'Generate financial reports',
       description: 'Produce income statement and balance sheet for review.',
       status: 'Completed',
-      assignedTo: makeId('u', 4),
-      dependencies: [makeId('t', 4)],
+      assigneeId: makeId('u', 4),
+      predecessors: [makeId('t', 4)],
       dueDate: lastWeek,
       createdAt: lastMonth,
       updatedAt: now
@@ -375,8 +375,8 @@ const seedData = {
       title: 'Client review meeting',
       description: 'Present reports to client and obtain sign-off.',
       status: 'Completed',
-      assignedTo: makeId('u', 3),
-      dependencies: [makeId('t', 5)],
+      assigneeId: makeId('u', 3),
+      predecessors: [makeId('t', 5)],
       dueDate: lastWeek,
       createdAt: lastMonth,
       updatedAt: now
@@ -388,8 +388,8 @@ const seedData = {
       title: 'Extract VAT summary',
       description: 'Pull VAT input and output data from accounting system.',
       status: 'Completed',
-      assignedTo: makeId('u', 4),
-      dependencies: [],
+      assigneeId: makeId('u', 4),
+      predecessors: [],
       dueDate: lastWeek,
       createdAt: lastWeek,
       updatedAt: now
@@ -400,8 +400,8 @@ const seedData = {
       title: 'Cross-check with 2550Q returns',
       description: 'Validate quarterly VAT return figures against ledgers.',
       status: 'For Review',
-      assignedTo: makeId('u', 4),
-      dependencies: [makeId('t', 7)],
+      assigneeId: makeId('u', 4),
+      predecessors: [makeId('t', 7)],
       dueDate: today,
       createdAt: lastWeek,
       updatedAt: now
@@ -412,8 +412,8 @@ const seedData = {
       title: 'Prepare compliance memo',
       description: 'Draft findings memo with recommendations for client.',
       status: 'Draft',
-      assignedTo: makeId('u', 3),
-      dependencies: [makeId('t', 8)],
+      assigneeId: makeId('u', 3),
+      predecessors: [makeId('t', 8)],
       dueDate: today,
       createdAt: lastWeek,
       updatedAt: now
@@ -425,8 +425,8 @@ const seedData = {
       title: 'Send PBC list to client',
       description: 'Request prepared-by-client documents and confirmations.',
       status: 'Completed',
-      assignedTo: makeId('u', 5),
-      dependencies: [],
+      assigneeId: makeId('u', 5),
+      predecessors: [],
       dueDate: lastWeek,
       createdAt: lastWeek,
       updatedAt: now
@@ -437,8 +437,8 @@ const seedData = {
       title: 'Perform analytical review',
       description: 'Compare current year ratios and balances against prior year.',
       status: 'In Progress',
-      assignedTo: makeId('u', 5),
-      dependencies: [makeId('t', 10)],
+      assigneeId: makeId('u', 5),
+      predecessors: [makeId('t', 10)],
       dueDate: today,
       createdAt: lastWeek,
       updatedAt: now
@@ -449,8 +449,8 @@ const seedData = {
       title: 'Draft audit report',
       description: 'Prepare independent auditor\'s report for partner review.',
       status: 'Assigned',
-      assignedTo: makeId('u', 5),
-      dependencies: [makeId('t', 11)],
+      assigneeId: makeId('u', 5),
+      predecessors: [makeId('t', 11)],
       dueDate: today,
       createdAt: lastWeek,
       updatedAt: now
@@ -462,8 +462,8 @@ const seedData = {
       title: 'Verify gross revenue figures',
       description: 'Confirm Q1 gross revenue with client finance team.',
       status: 'Draft',
-      assignedTo: null,
-      dependencies: [],
+      assigneeId: null,
+      predecessors: [],
       dueDate: today,
       createdAt: today,
       updatedAt: today
@@ -474,8 +474,8 @@ const seedData = {
       title: 'Compute percentage tax due',
       description: 'Calculate 3% percentage tax on gross sales/receipts.',
       status: 'Draft',
-      assignedTo: null,
-      dependencies: [makeId('t', 13)],
+      assigneeId: null,
+      predecessors: [makeId('t', 13)],
       dueDate: today,
       createdAt: today,
       updatedAt: today
@@ -486,8 +486,8 @@ const seedData = {
       title: 'File 2551Q via eBIR',
       description: 'Submit quarterly percentage tax return electronically.',
       status: 'Draft',
-      assignedTo: null,
-      dependencies: [makeId('t', 14)],
+      assigneeId: null,
+      predecessors: [makeId('t', 14)],
       dueDate: today,
       createdAt: today,
       updatedAt: today
@@ -499,20 +499,19 @@ const seedData = {
       id: makeId('inv', 1),
       clientId: makeId('c', 1),
       entity: 'ATA',
-      invoiceNumber: 'ATA-INV-2025-001',
+      invoiceNumber: 'ATA-SI-2025-001',
       issueDate: lastWeek,
       dueDate: today,
       status: 'Sent',
       lineItems: [
-        { description: 'Professional Fee - Annual Tax Filing', amount: 45000.00, type: 'PF' },
-        { description: 'BIR DST', amount: 150.00, type: 'GovtFee' },
-        { description: 'SEC Filing Fee', amount: 500.00, type: 'GovtFee' }
+        { description: 'Professional Fee - Annual Tax Filing', amount: 45000.00, type: 'PF', vatTreatment: 'VATable' },
+        { description: 'BIR DST', amount: 150.00, type: 'Government Fee', vatTreatment: 'VAT-Exempt' },
+        { description: 'SEC Filing Fee', amount: 500.00, type: 'Government Fee', vatTreatment: 'VAT-Exempt' }
       ],
       subtotal: 45650.00,
-      vatRate: 0.12,
-      vatAmount: 5478.00,
-      total: 51128.00,
-      amountPaid: 0.00,
+      vat: 5400.00,
+      total: 51050.00,
+      paidAmount: 0.00,
       createdAt: lastWeek,
       updatedAt: lastWeek
     },
@@ -520,18 +519,17 @@ const seedData = {
       id: makeId('inv', 2),
       clientId: makeId('c', 3),
       entity: 'ATA',
-      invoiceNumber: 'ATA-INV-2025-002',
+      invoiceNumber: 'ATA-SI-2025-002',
       issueDate: lastMonth,
       dueDate: lastWeek,
       status: 'Paid',
       lineItems: [
-        { description: 'Professional Fee - Monthly Bookkeeping (Retainer)', amount: 15000.00, type: 'PF' }
+        { description: 'Professional Fee - Monthly Bookkeeping (Retainer)', amount: 15000.00, type: 'PF', vatTreatment: 'VATable' }
       ],
       subtotal: 15000.00,
-      vatRate: 0.12,
-      vatAmount: 1800.00,
+      vat: 1800.00,
       total: 16800.00,
-      amountPaid: 16800.00,
+      paidAmount: 16800.00,
       createdAt: lastMonth,
       updatedAt: lastWeek
     },
@@ -539,20 +537,19 @@ const seedData = {
       id: makeId('inv', 3),
       clientId: makeId('c', 5),
       entity: 'LTA',
-      invoiceNumber: 'LTA-INV-2025-001',
+      invoiceNumber: 'LTA-SI-2025-001',
       issueDate: lastWeek,
       dueDate: today,
       status: 'Partially Paid',
       lineItems: [
-        { description: 'Professional Fee - Audit Engagement', amount: 85000.00, type: 'PF' },
-        { description: 'SEC Filing Fee', amount: 1000.00, type: 'GovtFee' },
-        { description: 'PCC Fee', amount: 800.00, type: 'GovtFee' }
+        { description: 'Professional Fee - Audit Engagement', amount: 85000.00, type: 'PF', vatTreatment: 'VATable' },
+        { description: 'SEC Filing Fee', amount: 1000.00, type: 'Government Fee', vatTreatment: 'VAT-Exempt' },
+        { description: 'PCC Fee', amount: 800.00, type: 'Government Fee', vatTreatment: 'VAT-Exempt' }
       ],
       subtotal: 86800.00,
-      vatRate: 0.12,
-      vatAmount: 10416.00,
-      total: 97216.00,
-      amountPaid: 48608.00,
+      vat: 10200.00,
+      total: 97000.00,
+      paidAmount: 48500.00,
       createdAt: lastWeek,
       updatedAt: lastWeek
     },
@@ -560,19 +557,18 @@ const seedData = {
       id: makeId('inv', 4),
       clientId: makeId('c', 7),
       entity: 'LTA',
-      invoiceNumber: 'LTA-INV-2025-002',
+      invoiceNumber: 'LTA-SI-2025-002',
       issueDate: today,
       dueDate: today,
       status: 'Draft',
       lineItems: [
-        { description: 'Professional Fee - Quarterly Tax Filing Q1', amount: 22000.00, type: 'PF' },
-        { description: 'BIR eFiling Fee', amount: 100.00, type: 'GovtFee' }
+        { description: 'Professional Fee - Quarterly Tax Filing Q1', amount: 22000.00, type: 'PF', vatTreatment: 'VATable' },
+        { description: 'BIR eFiling Fee', amount: 100.00, type: 'Government Fee', vatTreatment: 'VAT-Exempt' }
       ],
       subtotal: 22100.00,
-      vatRate: 0.12,
-      vatAmount: 2652.00,
-      total: 24752.00,
-      amountPaid: 0.00,
+      vat: 2640.00,
+      total: 24740.00,
+      paidAmount: 0.00,
       createdAt: today,
       updatedAt: today
     }
@@ -581,274 +577,277 @@ const seedData = {
   disbursements: [
     {
       id: makeId('d', 1),
-      invoiceId: makeId('inv', 1),
-      clientId: makeId('c', 1),
-      entity: 'ATA',
+      category: 'Government Fee',
       description: 'BIR Documentary Stamp Tax payment',
       amount: 150.00,
-      type: 'ClientFunded',
+      fundSource: 'Client Fund',
+      linkedInvoiceId: makeId('inv', 1),
+      entity: 'ATA',
+      employeeId: makeId('u', 4),
       status: 'Released',
-      requestedBy: makeId('u', 4),
-      approvedBy: makeId('u', 3),
+      submittedAt: lastWeek,
+      accountingApprovedBy: makeId('u', 3),
       releasedAt: lastWeek,
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      receiptFilename: 'bir-dst-receipt.pdf'
     },
     {
       id: makeId('d', 2),
-      invoiceId: makeId('inv', 1),
-      clientId: makeId('c', 1),
-      entity: 'ATA',
+      category: 'Government Fee',
       description: 'SEC Filing Fee payment',
       amount: 500.00,
-      type: 'ClientFunded',
+      fundSource: 'Client Fund',
+      linkedInvoiceId: makeId('inv', 1),
+      entity: 'ATA',
+      employeeId: makeId('u', 4),
       status: 'Released',
-      requestedBy: makeId('u', 4),
-      approvedBy: makeId('u', 3),
+      submittedAt: lastWeek,
+      accountingApprovedBy: makeId('u', 3),
       releasedAt: lastWeek,
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      receiptFilename: 'sec-filing-receipt.pdf'
     },
     {
       id: makeId('d', 3),
-      invoiceId: null,
-      clientId: null,
-      entity: 'ATA',
+      category: 'Other',
       description: 'Office supplies procurement',
       amount: 3250.00,
-      type: 'FirmFund',
+      fundSource: 'Firm Fund',
+      linkedInvoiceId: null,
+      entity: 'ATA',
+      employeeId: makeId('u', 6),
       status: 'Approved',
-      requestedBy: makeId('u', 6),
-      approvedBy: makeId('u', 2),
+      submittedAt: lastWeek,
+      managerApprovedBy: makeId('u', 2),
+      accountingApprovedBy: makeId('u', 3),
       releasedAt: null,
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      receiptFilename: 'office-supplies.pdf'
     },
     {
       id: makeId('d', 4),
-      invoiceId: makeId('inv', 3),
-      clientId: makeId('c', 5),
-      entity: 'LTA',
+      category: 'Government Fee',
       description: 'SEC Filing Fee for audited FS',
       amount: 1000.00,
-      type: 'ClientFunded',
+      fundSource: 'Client Fund',
+      linkedInvoiceId: makeId('inv', 3),
+      entity: 'LTA',
+      employeeId: makeId('u', 5),
       status: 'Submitted',
-      requestedBy: makeId('u', 5),
-      approvedBy: null,
+      submittedAt: lastWeek,
       releasedAt: null,
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      receiptFilename: null
     },
     {
       id: makeId('d', 5),
-      invoiceId: null,
-      clientId: null,
-      entity: 'LTA',
+      category: 'Transportation',
       description: 'Transportation allowance - field audit',
       amount: 1800.00,
-      type: 'FirmFund',
+      fundSource: 'Firm Fund',
+      linkedInvoiceId: null,
+      entity: 'LTA',
+      employeeId: makeId('u', 5),
       status: 'Released',
-      requestedBy: makeId('u', 5),
-      approvedBy: makeId('u', 2),
+      submittedAt: lastWeek,
+      managerApprovedBy: makeId('u', 2),
+      accountingApprovedBy: makeId('u', 3),
       releasedAt: lastWeek,
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      receiptFilename: 'transportation-allowance.pdf'
     },
     {
       id: makeId('d', 6),
-      invoiceId: null,
-      clientId: null,
-      entity: 'LTA',
+      category: 'Other',
       description: 'Employee training seminar fee',
       amount: 12500.00,
-      type: 'FirmFund',
+      fundSource: 'Firm Fund',
+      linkedInvoiceId: null,
+      entity: 'LTA',
+      employeeId: makeId('u', 9),
       status: 'Under Review',
-      requestedBy: makeId('u', 9),
-      approvedBy: null,
+      submittedAt: lastWeek,
+      managerApprovedBy: makeId('u', 2),
       releasedAt: null,
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      receiptFilename: null
     }
   ],
 
   documents: [
     {
       id: makeId('doc', 1),
-      title: 'Certificate of Registration (BIR Form 2303)',
-      clientId: makeId('c', 1),
-      entity: 'ATA',
-      category: 'Tax',
-      isOriginal: true,
-      location: 'Vault A, Shelf 3',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 4), date: lastMonth },
-        { action: 'Stored', by: makeId('u', 8), date: lastMonth }
+      fileName: 'BIR-2303-ManilaFresh.pdf',
+      workRequestId: makeId('wr', 1),
+      document_type: 'original_scan',
+      category: 'Requirement Docs',
+      uploader: makeId('u', 4),
+      uploadDate: lastMonth,
+      description: 'BIR Form 2303 copy for reference.',
+      handover_log: [
+        { handed_to: 'Juan dela Cruz', handed_date: lastMonth, method: 'In-Person' }
       ],
-      createdAt: lastMonth,
-      updatedAt: lastMonth
+      entity: 'ATA',
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 2),
-      title: 'Articles of Incorporation - Certified Copy',
-      clientId: makeId('c', 1),
+      fileName: 'Articles-of-Incorporation-ManilaFresh.pdf',
+      workRequestId: makeId('wr', 1),
+      document_type: 'generated_copy',
+      category: 'Requirement Docs',
+      uploader: makeId('u', 4),
+      uploadDate: lastMonth,
+      description: 'Certified copy of Articles of Incorporation.',
+      handover_log: [],
       entity: 'ATA',
-      category: 'Corporate',
-      isOriginal: false,
-      location: 'Vault A, Shelf 3',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 4), date: lastMonth },
-        { action: 'Stored', by: makeId('u', 8), date: lastMonth }
-      ],
-      createdAt: lastMonth,
-      updatedAt: lastMonth
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 3),
-      title: 'Audited Financial Statements 2024',
-      clientId: makeId('c', 3),
-      entity: 'ATA',
-      category: 'Audit',
-      isOriginal: true,
-      location: 'Vault B, Shelf 1',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 4), date: lastWeek },
-        { action: 'Stored', by: makeId('u', 8), date: lastWeek }
+      fileName: 'AFS-2024-DavaoAgri.pdf',
+      workRequestId: makeId('wr', 2),
+      document_type: 'original_scan',
+      category: 'Final Deliverables',
+      uploader: makeId('u', 4),
+      uploadDate: lastWeek,
+      description: 'Signed audited financial statements.',
+      handover_log: [
+        { handed_to: 'Ricardo Reyes', handed_date: lastWeek, method: 'Courier' }
       ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      entity: 'ATA',
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 4),
-      title: 'General Information Sheet (GIS) 2024',
-      clientId: makeId('c', 3),
-      entity: 'ATA',
-      category: 'Corporate',
-      isOriginal: true,
-      location: 'Vault B, Shelf 1',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 4), date: lastWeek },
-        { action: 'Stored', by: makeId('u', 8), date: lastWeek }
+      fileName: 'GIS-2024-DavaoAgri.pdf',
+      workRequestId: makeId('wr', 2),
+      document_type: 'original_scan',
+      category: 'Processed Forms',
+      uploader: makeId('u', 4),
+      uploadDate: lastWeek,
+      description: 'GIS 2024 submission copy.',
+      handover_log: [
+        { handed_to: 'Ricardo Reyes', handed_date: lastWeek, method: 'In-Person' }
       ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      entity: 'ATA',
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 5),
-      title: 'BIR Form 1701 - Annual ITR 2024',
-      clientId: makeId('c', 1),
+      fileName: 'BIR-1701-ManilaFresh.pdf',
+      workRequestId: makeId('wr', 1),
+      document_type: 'generated_copy',
+      category: 'Processed Forms',
+      uploader: makeId('u', 4),
+      uploadDate: lastWeek,
+      description: 'Annual ITR filing copy.',
+      handover_log: [],
       entity: 'ATA',
-      category: 'Tax',
-      isOriginal: false,
-      location: 'Digital / Filed electronically',
-      handoverLog: [
-        { action: 'Generated', by: makeId('u', 4), date: lastWeek },
-        { action: 'Filed', by: makeId('u', 4), date: lastWeek }
-      ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 6),
-      title: 'Bank Reconciliation Statement - Feb 2025',
-      clientId: makeId('c', 3),
+      fileName: 'Bank-Recon-Feb-2025.pdf',
+      workRequestId: makeId('wr', 2),
+      document_type: 'generated_copy',
+      category: 'Final Deliverables',
+      uploader: makeId('u', 4),
+      uploadDate: lastWeek,
+      description: 'Bank reconciliation for Feb 2025.',
+      handover_log: [],
       entity: 'ATA',
-      category: 'Accounting',
-      isOriginal: false,
-      location: 'Digital / Shared Drive',
-      handoverLog: [
-        { action: 'Generated', by: makeId('u', 4), date: lastWeek }
-      ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 7),
-      title: 'Certificate of Registration (BIR Form 2303)',
-      clientId: makeId('c', 5),
-      entity: 'LTA',
-      category: 'Tax',
-      isOriginal: true,
-      location: 'Vault A, Shelf 5',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 5), date: lastMonth },
-        { action: 'Stored', by: makeId('u', 8), date: lastMonth }
+      fileName: 'BIR-2303-BatangasIndustrial.pdf',
+      workRequestId: makeId('wr', 4),
+      document_type: 'original_scan',
+      category: 'Requirement Docs',
+      uploader: makeId('u', 5),
+      uploadDate: lastMonth,
+      description: 'BIR Form 2303 original scan.',
+      handover_log: [
+        { handed_to: 'Pedro Garcia', handed_date: lastMonth, method: 'Pickup' }
       ],
-      createdAt: lastMonth,
-      updatedAt: lastMonth
+      entity: 'LTA',
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 8),
-      title: 'Audited Financial Statements 2024',
-      clientId: makeId('c', 5),
+      fileName: 'AFS-2024-BatangasIndustrial.pdf',
+      workRequestId: makeId('wr', 4),
+      document_type: 'generated_copy',
+      category: 'Final Deliverables',
+      uploader: makeId('u', 5),
+      uploadDate: lastWeek,
+      description: 'Audit engagement deliverable copy.',
+      handover_log: [],
       entity: 'LTA',
-      category: 'Audit',
-      isOriginal: true,
-      location: 'Vault B, Shelf 2',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 5), date: lastWeek },
-        { action: 'Stored', by: makeId('u', 8), date: lastWeek }
-      ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 9),
-      title: 'General Information Sheet (GIS) 2024',
-      clientId: makeId('c', 7),
-      entity: 'LTA',
-      category: 'Corporate',
-      isOriginal: true,
-      location: 'Vault A, Shelf 6',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 5), date: lastMonth },
-        { action: 'Stored', by: makeId('u', 8), date: lastMonth }
+      fileName: 'GIS-2024-PampangaRetailers.pdf',
+      workRequestId: makeId('wr', 5),
+      document_type: 'original_scan',
+      category: 'Processed Forms',
+      uploader: makeId('u', 5),
+      uploadDate: lastMonth,
+      description: 'GIS 2024 original scan.',
+      handover_log: [
+        { handed_to: 'Carlos Mendoza', handed_date: lastMonth, method: 'Courier' }
       ],
-      createdAt: lastMonth,
-      updatedAt: lastMonth
+      entity: 'LTA',
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 10),
-      title: 'BIR Form 2551Q - Q4 2024',
-      clientId: makeId('c', 7),
+      fileName: 'BIR-2551Q-Q4-2024.pdf',
+      workRequestId: makeId('wr', 5),
+      document_type: 'generated_copy',
+      category: 'Government Receipts',
+      uploader: makeId('u', 5),
+      uploadDate: lastWeek,
+      description: 'Filed 2551Q copy for Q4 2024.',
+      handover_log: [],
       entity: 'LTA',
-      category: 'Tax',
-      isOriginal: false,
-      location: 'Digital / Filed electronically',
-      handoverLog: [
-        { action: 'Generated', by: makeId('u', 5), date: lastWeek },
-        { action: 'Filed', by: makeId('u', 5), date: lastWeek }
-      ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 11),
-      title: 'Minutes of Annual Stockholders Meeting 2024',
-      clientId: makeId('c', 5),
-      entity: 'LTA',
-      category: 'Corporate',
-      isOriginal: true,
-      location: 'Vault A, Shelf 5',
-      handoverLog: [
-        { action: 'Received', by: makeId('u', 5), date: lastMonth },
-        { action: 'Stored', by: makeId('u', 8), date: lastMonth }
+      fileName: 'ASM-Minutes-2024-BatangasIndustrial.pdf',
+      workRequestId: makeId('wr', 4),
+      document_type: 'original_scan',
+      category: 'Requirement Docs',
+      uploader: makeId('u', 5),
+      uploadDate: lastMonth,
+      description: 'Minutes of annual stockholders meeting.',
+      handover_log: [
+        { handed_to: 'Pedro Garcia', handed_date: lastMonth, method: 'In-Person' }
       ],
-      createdAt: lastMonth,
-      updatedAt: lastMonth
+      entity: 'LTA',
+      dataUrl: '',
+      versions: []
     },
     {
       id: makeId('doc', 12),
-      title: 'Payroll Register - March 2025',
-      clientId: makeId('c', 6),
+      fileName: 'Payroll-Register-Mar-2025.pdf',
+      workRequestId: makeId('wr', 6),
+      document_type: 'generated_copy',
+      category: 'Other',
+      uploader: makeId('u', 5),
+      uploadDate: lastWeek,
+      description: 'Payroll register for March 2025.',
+      handover_log: [],
       entity: 'LTA',
-      category: 'HR',
-      isOriginal: false,
-      location: 'Digital / Shared Drive',
-      handoverLog: [
-        { action: 'Generated', by: makeId('u', 5), date: lastWeek }
-      ],
-      createdAt: lastWeek,
-      updatedAt: lastWeek
+      dataUrl: '',
+      versions: []
     }
   ],
 
@@ -858,13 +857,14 @@ const seedData = {
       name: 'Monthly Bookkeeping',
       description: 'Standard monthly bookkeeping package including bank reconciliation, expense coding, and financial report generation.',
       entity: 'ATA',
-      defaultAmount: 15000.00,
-      billingCycle: 'Monthly',
+      clientId: makeId('c', 3),
+      schedule: 'monthly',
+      pfAmount: 15000.00,
       tasks: [
-        'Reconcile bank statements',
-        'Encode transactions',
-        'Generate financial reports',
-        'Client review meeting'
+        { id: makeId('rtt', 1), title: 'Reconcile bank statements', predecessors: [] },
+        { id: makeId('rtt', 2), title: 'Encode transactions', predecessors: [makeId('rtt', 1)] },
+        { id: makeId('rtt', 3), title: 'Generate financial reports', predecessors: [makeId('rtt', 2)] },
+        { id: makeId('rtt', 4), title: 'Client review meeting', predecessors: [makeId('rtt', 3)] }
       ],
       createdAt: now
     },
@@ -873,13 +873,14 @@ const seedData = {
       name: 'Quarterly Tax Filing',
       description: 'Quarterly percentage tax and income tax return preparation and electronic filing.',
       entity: 'LTA',
-      defaultAmount: 22000.00,
-      billingCycle: 'Quarterly',
+      clientId: makeId('c', 7),
+      schedule: 'quarterly',
+      pfAmount: 22000.00,
       tasks: [
-        'Verify gross revenue figures',
-        'Compute percentage tax due',
-        'Prepare 2551Q / 1701Q',
-        'File via eBIR Forms'
+        { id: makeId('rtt', 5), title: 'Verify gross revenue figures', predecessors: [] },
+        { id: makeId('rtt', 6), title: 'Compute percentage tax due', predecessors: [makeId('rtt', 5)] },
+        { id: makeId('rtt', 7), title: 'Prepare 2551Q / 1701Q', predecessors: [makeId('rtt', 6)] },
+        { id: makeId('rtt', 8), title: 'File via eBIR Forms', predecessors: [makeId('rtt', 7)] }
       ],
       createdAt: now
     }
@@ -974,7 +975,7 @@ const seedData = {
 // ============================================================
 
 const DB = {
-  SCHEMA_VERSION: 1,
+  SCHEMA_VERSION: 2,
 
   init() {
     const stored = localStorage.getItem('erp_schema_version');

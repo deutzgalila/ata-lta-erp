@@ -21,6 +21,16 @@ const Disbursement = {
 
   init() {},
 
+  getFundSource(item) {
+    if (item.fundSource) return item.fundSource;
+    if (item.type === 'ClientFunded') return 'Client Fund';
+    return 'Firm Fund';
+  },
+
+  getEmployeeId(item) {
+    return item.employeeId || item.requestedBy;
+  },
+
   // ============================================================
   // List View
   // ============================================================
@@ -64,7 +74,7 @@ const Disbursement = {
     while (container.firstChild) container.removeChild(container.firstChild);
     const entity = Auth.activeEntity;
     let items = DB.getWhere('disbursements', d => d.entity === entity);
-    if (fundFilter) items = items.filter(d => d.fundSource === fundFilter);
+    if (fundFilter) items = items.filter(d => this.getFundSource(d) === fundFilter);
     if (statusFilter) items = items.filter(d => d.status === statusFilter);
 
     if (items.length === 0) {
@@ -81,12 +91,13 @@ const Disbursement = {
 
     const tbody = el('tbody');
     items.forEach(d => {
-      const emp = DB.getById('users', d.employeeId);
+      const emp = DB.getById('users', this.getEmployeeId(d));
       const tr = el('tr');
       tr.appendChild(el('td', { text: emp?.name || '—' }));
       tr.appendChild(el('td', { text: d.category }));
       tr.appendChild(el('td', { text: formatPHP(d.amount) }));
-      const fundBadge = el('span', { class: 'badge ' + (d.fundSource === 'Firm Fund' ? 'badge-info' : 'badge-warning'), text: d.fundSource });
+      const source = this.getFundSource(d);
+      const fundBadge = el('span', { class: 'badge ' + (source === 'Firm Fund' ? 'badge-info' : 'badge-warning'), text: source });
       const tdFund = el('td');
       tdFund.appendChild(fundBadge);
       tr.appendChild(tdFund);
@@ -216,7 +227,7 @@ const Disbursement = {
   renderDetail() {
     const d = DB.getById('disbursements', this.detailId);
     if (!d) { this.view = 'list'; App.handleRoute(); return el('div'); }
-    const emp = DB.getById('users', d.employeeId);
+    const emp = DB.getById('users', this.getEmployeeId(d));
     const container = el('div');
 
     container.appendChild(el('h2', { text: d.category + ' — ' + formatPHP(d.amount) }));
@@ -224,7 +235,7 @@ const Disbursement = {
     const meta = el('div', { class: 'invoice-meta' });
     meta.appendChild(el('p', { text: 'Employee: ' + (emp?.name || '—') }));
     meta.appendChild(el('p', { text: 'Description: ' + d.description }));
-    meta.appendChild(el('p', { text: 'Fund Source: ' + d.fundSource }));
+    meta.appendChild(el('p', { text: 'Fund Source: ' + this.getFundSource(d) }));
     meta.appendChild(el('p', { text: 'Status: ' + d.status }));
     if (d.receiptFilename) meta.appendChild(el('p', { text: 'Receipt: ' + d.receiptFilename }));
     container.appendChild(meta);
@@ -232,7 +243,7 @@ const Disbursement = {
     const actions = el('div', { class: 'form-actions' });
 
     // Self-approval block
-    if (Auth.isSelfApprover(d.employeeId)) {
+    if (Auth.isSelfApprover(this.getEmployeeId(d))) {
       const blockMsg = el('p', { class: 'field-error', text: 'You cannot approve your own expense.' });
       container.appendChild(blockMsg);
     } else {
@@ -246,7 +257,7 @@ const Disbursement = {
         approveBtn.addEventListener('click', () => { this.approve(this.detailId); App.handleRoute(); });
         actions.appendChild(approveBtn);
       }
-      if (d.status !== 'Released' && d.status !== 'Rejected' && d.status !== 'Cancelled' && !Auth.isSelfApprover(d.employeeId)) {
+      if (d.status !== 'Released' && d.status !== 'Rejected' && d.status !== 'Cancelled' && !Auth.isSelfApprover(this.getEmployeeId(d))) {
         const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Reject' });
         rejectBtn.addEventListener('click', () => {
           const reason = prompt('Enter rejection reason:');
@@ -271,9 +282,10 @@ const Disbursement = {
 
   canApprove(id) {
     const d = DB.getById('disbursements', id);
-    if (!d || Auth.isSelfApprover(d.employeeId)) return false;
+    if (!d || Auth.isSelfApprover(this.getEmployeeId(d))) return false;
     if (!Auth.can('disbursement:approve')) return false;
-    if (d.fundSource === 'Firm Fund') {
+    const fundSource = this.getFundSource(d);
+    if (fundSource === 'Firm Fund') {
       if (d.status === 'Submitted') return 'manager';
       if (d.status === 'Under Review') return 'accounting';
     } else {
@@ -315,7 +327,7 @@ const Disbursement = {
     // By Employee
     const byEmployee = {};
     items.forEach(d => {
-      const emp = DB.getById('users', d.employeeId)?.name || 'Unknown';
+      const emp = DB.getById('users', this.getEmployeeId(d))?.name || 'Unknown';
       byEmployee[emp] = (byEmployee[emp] || 0) + d.amount;
     });
 
@@ -346,8 +358,8 @@ const Disbursement = {
     container.appendChild(catTable);
 
     // Fund split
-    const firmTotal = items.filter(d => d.fundSource === 'Firm Fund').reduce((s, d) => s + d.amount, 0);
-    const clientTotal = items.filter(d => d.fundSource === 'Client Fund').reduce((s, d) => s + d.amount, 0);
+    const firmTotal = items.filter(d => this.getFundSource(d) === 'Firm Fund').reduce((s, d) => s + d.amount, 0);
+    const clientTotal = items.filter(d => this.getFundSource(d) === 'Client Fund').reduce((s, d) => s + d.amount, 0);
 
     const fundTable = el('table', { class: 'data-table' });
     fundTable.appendChild(el('thead', {}, [el('tr', {}, [el('th', { text: 'Fund Source' }), el('th', { text: 'Total' })])]));

@@ -11,6 +11,7 @@ const App = {
     this.renderShell();
     this.setupRouting();
     this.setupNavigation();
+    this.setupResponsiveMenu();
     this.setupLogout();
     const defaultRoute = Auth.user.role === 'Admin' || Auth.user.role === 'Manager' ? '#dashboard' : '#workflow';
     location.hash = defaultRoute;
@@ -59,6 +60,25 @@ const App = {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         location.hash = link.getAttribute('href');
+      });
+    });
+  },
+
+  setupResponsiveMenu() {
+    const toggle = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const headerActions = document.querySelector('.header-actions');
+    if (!toggle || !sidebar) return;
+
+    toggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      if (headerActions) headerActions.classList.toggle('show');
+    });
+
+    document.querySelectorAll('nav a[data-module]').forEach(link => {
+      link.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        if (headerActions) headerActions.classList.remove('show');
       });
     });
   },

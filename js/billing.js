@@ -21,6 +21,30 @@ const Billing = {
 
   init() {},
 
+  getPaidAmount(inv) {
+    return inv.paidAmount ?? inv.amountPaid ?? 0;
+  },
+
+  getSubtotal(inv) {
+    if (typeof inv.subtotal === 'number') return inv.subtotal;
+    if (Array.isArray(inv.lineItems)) {
+      return inv.lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    }
+    return 0;
+  },
+
+  getVatAmount(inv) {
+    if (typeof inv.vat === 'number') return inv.vat;
+    if (typeof inv.vatAmount === 'number') return inv.vatAmount;
+    if (Array.isArray(inv.lineItems)) {
+      return inv.lineItems.reduce((sum, item) => {
+        const amt = parseFloat(item.amount) || 0;
+        return sum + (item.vatTreatment === 'VATable' ? amt * 0.12 : 0);
+      }, 0);
+    }
+    return 0;
+  },
+
   // ============================================================
   // List View
   // ============================================================
@@ -376,12 +400,15 @@ const Billing = {
     container.appendChild(table);
 
     // Totals
+    const subtotal = this.getSubtotal(inv);
+    const vat = this.getVatAmount(inv);
+    const paid = this.getPaidAmount(inv);
     const totals = el('div', { class: 'invoice-totals' });
-    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'Subtotal:' }), el('span', { text: formatPHP(inv.subtotal) })]));
-    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'VAT (12%):' }), el('span', { text: formatPHP(inv.vat) })]));
+    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'Subtotal:' }), el('span', { text: formatPHP(subtotal) })]));
+    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'VAT (12%):' }), el('span', { text: formatPHP(vat) })]));
     totals.appendChild(el('div', { class: 'total-row total-grand' }, [el('span', { text: 'Total:' }), el('span', { text: formatPHP(inv.total) })]));
-    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'Paid:' }), el('span', { text: formatPHP(inv.paidAmount || 0) })]));
-    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'Balance:' }), el('span', { text: formatPHP(inv.total - (inv.paidAmount || 0)) })]));
+    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'Paid:' }), el('span', { text: formatPHP(paid) })]));
+    totals.appendChild(el('div', { class: 'total-row' }, [el('span', { text: 'Balance:' }), el('span', { text: formatPHP(inv.total - paid) })]));
     container.appendChild(totals);
 
     // Payment recording
@@ -405,7 +432,7 @@ const Billing = {
         e.preventDefault();
         const fd = new FormData(payForm);
         const payAmount = parseFloat(fd.get('payAmount')) || 0;
-        const currentPaid = inv.paidAmount || 0;
+        const currentPaid = this.getPaidAmount(inv);
         const newPaid = currentPaid + payAmount;
         let newStatus = inv.status;
         if (newPaid >= inv.total) newStatus = 'Paid';
@@ -459,7 +486,7 @@ const Billing = {
 
     const grid = el('div', { class: 'kpi-grid' });
     Object.entries(buckets).forEach(([label, invs]) => {
-      const total = invs.reduce((sum, inv) => sum + (inv.total - (inv.paidAmount || 0)), 0);
+      const total = invs.reduce((sum, inv) => sum + (inv.total - this.getPaidAmount(inv)), 0);
       grid.appendChild(this.kpiCard(label + ' Days', invs.length + ' invoices', formatPHP(total)));
     });
     container.appendChild(grid);

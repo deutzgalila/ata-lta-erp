@@ -37,8 +37,18 @@ const Dashboard = {
     });
     return {
       activeWR: wrs.filter(r => r.status !== 'Completed' && r.status !== 'Cancelled').length,
-      revenue: invs.filter(r => r.status === 'Paid' || r.status === 'Partially Paid').reduce((sum, r) => sum + (r.amountPaid || r.total), 0),
-      outstanding: invs.filter(r => r.status === 'Sent' || r.status === 'Partially Paid' || r.status === 'Overdue').reduce((sum, r) => sum + (r.total - (r.amountPaid || 0)), 0),
+      revenue: invs
+        .filter(r => r.status === 'Paid' || r.status === 'Partially Paid')
+        .reduce((sum, r) => {
+          const paid = r.paidAmount ?? r.amountPaid ?? r.total ?? 0;
+          return sum + paid;
+        }, 0),
+      outstanding: invs
+        .filter(r => r.status === 'Sent' || r.status === 'Partially Paid' || r.status === 'Overdue')
+        .reduce((sum, r) => {
+          const paid = r.paidAmount ?? r.amountPaid ?? 0;
+          return sum + (r.total - paid);
+        }, 0),
       overdue: tasks.filter(r => r.status !== 'Completed' && r.status !== 'Cancelled' && new Date(r.dueDate) < new Date()).length
     };
   },

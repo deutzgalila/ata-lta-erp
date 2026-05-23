@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+.playwright-mcp/
+backup/
+.~lock.*
+
+# Documentation/Artifacts (Optional: keep if you want them in git)
+# *.png
+# *.docx

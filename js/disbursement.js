@@ -297,53 +297,73 @@ const Disbursement = {
     const dept = Auth.user.department;
     const isManagerial = role === 'Admin' || role === 'Manager';
     const isAccounting = dept === 'Accounting';
+    const fundSource = this.getFundSource(d);
 
-    // 1. Review Phase (Submitted -> Approved)
-    // Handled by Managers/Admins (cannot be requester)
-    if (d.status === 'Submitted' || d.status === 'Under Review') {
-      if (isManagerial) {
-        if (isRequester) {
-          container.appendChild(el('p', { class: 'field-error', text: 'You cannot approve your own expense submission.' }));
-        } else {
-          const approveBtn = el('button', { class: 'btn btn-primary', text: 'Approve Submission' });
-          approveBtn.addEventListener('click', () => { this.approve(this.detailId); App.handleRoute(); });
-          actions.appendChild(approveBtn);
+    if (fundSource === 'Client Fund') {
+      // 1-Tier Immediate Release for Client Funds
+      if (d.status !== 'Released' && d.status !== 'Rejected' && d.status !== 'Cancelled') {
+        if (isManagerial || isAccounting) {
+          const releaseBtn = el('button', { class: 'btn btn-success', text: 'Authorize Release' });
+          releaseBtn.addEventListener('click', () => { this.release(this.detailId); App.handleRoute(); });
+          actions.appendChild(releaseBtn);
 
-          const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Reject' });
+          const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Reject / Void' });
           rejectBtn.addEventListener('click', () => {
             const reason = prompt('Enter rejection reason:');
             if (reason) { this.reject(this.detailId, reason); App.handleRoute(); }
           });
           actions.appendChild(rejectBtn);
+        } else {
+          container.appendChild(el('p', { class: 'empty-state', text: 'Waiting for Admin/Manager or Accounting release.' }));
         }
-      } else {
-        container.appendChild(el('p', { class: 'empty-state', text: 'Waiting for Admin/Manager review.' }));
       }
-    }
+    } else {
+      // 2-Tier Approval Chain for Firm Funds
+      // 1. Review Phase (Submitted -> Approved)
+      if (d.status === 'Submitted' || d.status === 'Under Review') {
+        if (isManagerial) {
+          if (isRequester) {
+            container.appendChild(el('p', { class: 'field-error', text: 'You cannot approve your own expense submission.' }));
+          } else {
+            const approveBtn = el('button', { class: 'btn btn-primary', text: 'Approve Submission' });
+            approveBtn.addEventListener('click', () => { this.approve(this.detailId); App.handleRoute(); });
+            actions.appendChild(approveBtn);
 
-    // 2. Release Phase (Approved -> Released)
-    // Handled by Accounting Staff (cannot be requester OR the same person who approved)
-    if (d.status === 'Approved') {
-      const isApprover = Auth.user.id === d.approvedBy;
-      const canRelease = (isAccounting || isManagerial) && !isRequester && !isApprover;
-      
-      if (canRelease) {
-        const releaseBtn = el('button', { class: 'btn btn-success', text: 'Authorize Release' });
-        releaseBtn.addEventListener('click', () => { this.release(this.detailId); App.handleRoute(); });
-        actions.appendChild(releaseBtn);
+            const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Reject' });
+            rejectBtn.addEventListener('click', () => {
+              const reason = prompt('Enter rejection reason:');
+              if (reason) { this.reject(this.detailId, reason); App.handleRoute(); }
+            });
+            actions.appendChild(rejectBtn);
+          }
+        } else {
+          container.appendChild(el('p', { class: 'empty-state', text: 'Waiting for Admin/Manager review.' }));
+        }
+      }
 
-        const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Void / Reject' });
-        rejectBtn.addEventListener('click', () => {
-          const reason = prompt('Enter reason for voiding:');
-          if (reason) { this.reject(this.detailId, reason); App.handleRoute(); }
-        });
-        actions.appendChild(rejectBtn);
-      } else if (isRequester) {
-        container.appendChild(el('p', { class: 'field-error', text: 'You cannot release your own expense.' }));
-      } else if (isApprover) {
-        container.appendChild(el('p', { class: 'field-success', text: 'You approved this expense; a different user (Accounting or another Manager) must authorize the release.' }));
-      } else {
-        container.appendChild(el('p', { class: 'empty-state', text: 'Waiting for Accounting release authorization.' }));
+      // 2. Release Phase (Approved -> Released)
+      if (d.status === 'Approved') {
+        const isApprover = Auth.user.id === d.approvedBy;
+        const canRelease = (isAccounting || isManagerial) && !isRequester && !isApprover;
+        
+        if (canRelease) {
+          const releaseBtn = el('button', { class: 'btn btn-success', text: 'Authorize Release' });
+          releaseBtn.addEventListener('click', () => { this.release(this.detailId); App.handleRoute(); });
+          actions.appendChild(releaseBtn);
+
+          const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Void / Reject' });
+          rejectBtn.addEventListener('click', () => {
+            const reason = prompt('Enter reason for voiding:');
+            if (reason) { this.reject(this.detailId, reason); App.handleRoute(); }
+          });
+          actions.appendChild(rejectBtn);
+        } else if (isRequester) {
+          container.appendChild(el('p', { class: 'field-error', text: 'You cannot release your own expense.' }));
+        } else if (isApprover) {
+          container.appendChild(el('p', { class: 'field-success', text: 'You approved this expense; a different user (Accounting or another Manager) must authorize the release.' }));
+        } else {
+          container.appendChild(el('p', { class: 'empty-state', text: 'Waiting for Accounting release authorization.' }));
+        }
       }
     }
 

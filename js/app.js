@@ -33,15 +33,22 @@ const App = {
 
     items.forEach(d => {
       const isRequester = d.employeeId === Auth.user.id;
+      const fundSource = d.fundSource || (d.type === 'ClientFunded' ? 'Client Fund' : 'Firm Fund');
       
-      // Managers: Pending for initial review
-      if (isManagerial && (d.status === 'Submitted' || d.status === 'Under Review') && !isRequester) {
-        count++;
-      }
-      // Accounting: Pending for final release
-      else if (d.status === 'Approved' && !isRequester && d.approvedBy !== Auth.user.id) {
-        if (isAccounting || isManagerial) {
-           count++;
+      if (fundSource === 'Client Fund') {
+        // Client Funds: 1-tier, any authorized role can release immediately
+        if (d.status === 'Submitted' || d.status === 'Under Review' || d.status === 'Approved') {
+          count++;
+        }
+      } else {
+        // Firm Funds: 2-tier Approval Chain
+        // Managers: Initial review
+        if (isManagerial && (d.status === 'Submitted' || d.status === 'Under Review') && !isRequester) {
+          count++;
+        }
+        // Accounting/Other Managers: Final release (conflict block applies)
+        else if (d.status === 'Approved' && !isRequester && d.approvedBy !== Auth.user.id) {
+          count++;
         }
       }
     });

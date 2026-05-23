@@ -325,6 +325,14 @@ const DMS = {
     }
 
     const container = el('div');
+    
+    // Top actions bar
+    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
+    const topBackBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
+    topBackBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+    topActions.appendChild(topBackBtn);
+    container.appendChild(topActions);
+
     const uploader = DB.getById('users', doc.uploader);
 
     // Document info
@@ -459,10 +467,6 @@ const DMS = {
       handoverSection.appendChild(handoverForm);
       container.appendChild(handoverSection);
     }
-
-    const backBtn = el('button', { class: 'btn btn-ghost', text: 'Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
-    container.appendChild(backBtn);
 
     return container;
   },

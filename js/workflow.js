@@ -471,6 +471,14 @@ const Workflow = {
     const tasks = DB.getWhere('tasks', t => t.workRequestId === wr.id);
 
     const container = el('div');
+    
+    // Top actions bar
+    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
+    const topBackBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
+    topBackBtn.addEventListener('click', () => { this.view = 'list'; this.detailWrId = null; App.handleRoute(); });
+    topActions.appendChild(topBackBtn);
+    container.appendChild(topActions);
+
     container.appendChild(el('h2', { text: wr.title }));
 
     const meta = el('div', { class: 'wr-meta' });
@@ -566,10 +574,6 @@ const Workflow = {
       }
       container.appendChild(this.renderTaskActivity(tasks));
     }
-
-    const backBtn = el('button', { class: 'btn btn-ghost', text: 'Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; this.detailWrId = null; App.handleRoute(); });
-    container.appendChild(backBtn);
 
     return container;
   },

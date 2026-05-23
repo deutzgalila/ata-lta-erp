@@ -229,6 +229,13 @@ const Disbursement = {
     if (!d) { this.view = 'list'; App.handleRoute(); return el('div'); }
     const emp = DB.getById('users', this.getEmployeeId(d));
     const container = el('div');
+    
+    // Top actions bar
+    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
+    const topBackBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
+    topBackBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+    topActions.appendChild(topBackBtn);
+    container.appendChild(topActions);
 
     container.appendChild(el('h2', { text: d.category + ' — ' + formatPHP(d.amount) }));
 
@@ -272,9 +279,6 @@ const Disbursement = {
       }
     }
 
-    const backBtn = el('button', { class: 'btn btn-ghost', text: 'Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
-    actions.appendChild(backBtn);
     container.appendChild(actions);
 
     return container;
@@ -322,6 +326,14 @@ const Disbursement = {
     const items = DB.getWhere('disbursements', d => d.entity === entity && d.status === 'Released');
 
     const container = el('div');
+    
+    // Top actions bar
+    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
+    const topBackBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
+    topBackBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
+    topActions.appendChild(topBackBtn);
+    container.appendChild(topActions);
+
     container.appendChild(el('h2', { text: 'Reimbursement Summary' }));
 
     // By Employee
@@ -369,10 +381,6 @@ const Disbursement = {
     fundTable.appendChild(fundBody);
     container.appendChild(el('h3', { text: 'By Fund Source' }));
     container.appendChild(fundTable);
-
-    const backBtn = el('button', { class: 'btn btn-ghost', text: 'Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-    container.appendChild(backBtn);
 
     return container;
   }

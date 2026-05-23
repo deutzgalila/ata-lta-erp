@@ -486,6 +486,14 @@ const Billing = {
     });
 
     const container = el('div');
+    
+    // Top actions bar
+    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
+    const backBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
+    backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
+    topActions.appendChild(backBtn);
+    container.appendChild(topActions);
+
     container.appendChild(el('h2', { text: 'Aging Report' }));
 
     const grid = el('div', { class: 'kpi-grid' });
@@ -495,9 +503,6 @@ const Billing = {
     });
     container.appendChild(grid);
 
-    const backBtn = el('button', { class: 'btn btn-ghost', text: 'Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-    container.appendChild(backBtn);
     return container;
   },
 

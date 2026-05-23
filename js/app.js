@@ -25,6 +25,11 @@ const App = {
     const avatar = document.getElementById('user-avatar');
     if (avatar) {
       avatar.textContent = '';
+      if (Auth.user.avatarUrl) {
+        avatar.style.backgroundImage = `url('${Auth.user.avatarUrl}')`;
+      } else {
+        avatar.style.backgroundImage = `url('https://ui-avatars.com/api/?name=${encodeURIComponent(Auth.user.name)}&background=2563eb&color=fff')`;
+      }
     }
     this.renderEntitySwitcher();
   },

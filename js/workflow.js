@@ -89,6 +89,7 @@ const Workflow = {
 
     wrs.forEach(wr => {
       const client = DB.getById('clients', wr.clientId);
+      const assignedUser = DB.getById('users', wr.assignedTo);
       const tasks = DB.getWhere('tasks', t => t.workRequestId === wr.id);
       const completed = tasks.filter(t => t.status === 'Completed').length;
       const total = tasks.length || 1;
@@ -106,6 +107,19 @@ const Workflow = {
       meta.appendChild(el('span', { text: 'Client: ' + (client?.name || '—') }));
       meta.appendChild(el('span', { text: 'Priority: ' + (wr.priority || 'Normal') }));
       meta.appendChild(el('span', { text: 'Due: ' + (wr.dueDate ? formatDate(wr.dueDate) : '—') }));
+      
+      const assigneeSpan = el('span', { class: 'assignee-chip', style: 'margin-top: 4px;' });
+      assigneeSpan.appendChild(document.createTextNode('Assignee: '));
+      if (assignedUser) {
+        const av = el('div', { class: 'avatar-sm' });
+        av.style.backgroundImage = `url('${assignedUser.avatarUrl || ''}')`;
+        assigneeSpan.appendChild(av);
+        assigneeSpan.appendChild(document.createTextNode(assignedUser.name));
+      } else {
+        assigneeSpan.appendChild(document.createTextNode('Unassigned'));
+      }
+      meta.appendChild(assigneeSpan);
+      
       card.appendChild(meta);
 
       const progressWrap = el('div', { class: 'progress-wrap' });
@@ -529,7 +543,17 @@ const Workflow = {
       const assignee = DB.getById('users', t.assigneeId || t.assignedTo);
       const tr = el('tr');
       tr.appendChild(el('td', { text: t.title }));
-      tr.appendChild(el('td', { text: assignee?.name || '—' }));
+      
+      const assigneeTd = el('td');
+      const assigneeWrap = el('div', { class: 'assignee-chip' });
+      if (assignee && assignee.avatarUrl) {
+          const av = el('div', { class: 'avatar-sm' });
+          av.style.backgroundImage = `url('${assignee.avatarUrl}')`;
+          assigneeWrap.appendChild(av);
+      }
+      assigneeWrap.appendChild(document.createTextNode(assignee?.name || '—'));
+      assigneeTd.appendChild(assigneeWrap);
+      tr.appendChild(assigneeTd);
 
       const depTd = el('td');
       const preds = t.predecessors || t.dependencies || [];

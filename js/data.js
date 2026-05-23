@@ -29,6 +29,7 @@ const seedData = {
       department: 'Managerial',
       entities: ['ATA', 'LTA'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
       createdAt: now
     },
     {
@@ -40,6 +41,7 @@ const seedData = {
       department: 'Managerial',
       entities: ['ATA', 'LTA'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/women/2.jpg',
       createdAt: now
     },
     {
@@ -51,6 +53,7 @@ const seedData = {
       department: 'Accounting',
       entities: ['ata'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/men/3.jpg',
       createdAt: now
     },
     {
@@ -62,6 +65,7 @@ const seedData = {
       department: 'Accounting',
       entities: ['ata'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/women/4.jpg',
       createdAt: now
     },
     {
@@ -73,6 +77,7 @@ const seedData = {
       department: 'Accounting',
       entities: ['lta'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/men/5.jpg',
       createdAt: now
     },
     {
@@ -84,6 +89,7 @@ const seedData = {
       department: 'Operations',
       entities: ['ata'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/women/6.jpg',
       createdAt: now
     },
     {
@@ -95,6 +101,7 @@ const seedData = {
       department: 'Operations',
       entities: ['lta'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/men/7.jpg',
       createdAt: now
     },
     {
@@ -106,6 +113,7 @@ const seedData = {
       department: 'Documentations',
       entities: ['ATA', 'LTA'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/women/8.jpg',
       createdAt: now
     },
     {
@@ -117,6 +125,7 @@ const seedData = {
       department: 'HR',
       entities: ['ATA', 'LTA'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/women/9.jpg',
       createdAt: now
     },
     {
@@ -128,6 +137,7 @@ const seedData = {
       department: 'Admin',
       entities: ['ATA', 'LTA'],
       isActive: true,
+      avatarUrl: 'https://randomuser.me/api/portraits/men/10.jpg',
       createdAt: now
     }
   ],

@@ -9,7 +9,7 @@ const Reports = {
     const entities = this.getAccessibleEntities();
     return el('div', {class: 'page'}, [
       el('h1', {text: 'Reports'}),
-      el('div', {class: 'report-grid'}, [
+      el('div', {class: 'bento-grid'}, [
         this.renderWorkRequestVolume(entities),
         this.renderTaskCompletion(entities),
         this.renderBillingSummary(entities),
@@ -69,7 +69,7 @@ const Reports = {
       </svg>
     `;
 
-    return el('div', {class: 'report-card report-card-wide'}, [
+    return el('div', {class: 'bento-item bento-two-thirds report-card'}, [
       el('h2', {text: 'Work Request Volume Trend'}),
       chartContainer
     ]);
@@ -124,7 +124,7 @@ const Reports = {
       ]);
     }
 
-    return el('div', {class: 'report-card'}, [
+    return el('div', {class: 'bento-item bento-third report-card'}, [
       el('h2', {text: 'Task Completion Rate'}),
       el('div', {class: 'report-stat'}, [
         el('span', {text: String(avgDays)}),
@@ -168,7 +168,7 @@ const Reports = {
       ]);
     });
 
-    return el('div', {class: 'report-card'}, [
+    return el('div', {class: 'bento-item bento-half report-card'}, [
       el('h2', {text: 'Billing Summary'}),
       el('table', {class: 'report-table'}, [
         el('thead', {}, [
@@ -242,7 +242,7 @@ const Reports = {
       ]);
     }
 
-    return el('div', {class: 'report-card'}, [
+    return el('div', {class: 'bento-item bento-half report-card'}, [
       el('h2', {text: 'Disbursement Report'}),
       fundSplit,
       el('h3', {text: 'By Employee'}),
@@ -302,7 +302,7 @@ const Reports = {
       ]);
     });
 
-    return el('div', {class: 'report-card report-card-wide'}, [
+    return el('div', {class: 'bento-item bento-full report-card'}, [
       el('h2', {text: 'Entity P&L Snapshot'}),
       el('div', {class: 'pl-grid'}, cards)
     ]);

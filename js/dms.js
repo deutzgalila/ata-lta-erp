@@ -35,18 +35,27 @@ const DMS = {
     typeFilter.appendChild(el('option', { value: '', text: 'All Types' }));
     typeFilter.appendChild(el('option', { value: 'original_scan', text: 'Original Scan' }));
     typeFilter.appendChild(el('option', { value: 'generated_copy', text: 'Generated Copy' }));
-    typeFilter.addEventListener('change', () => this.refreshList(listContainer, typeFilter.value, entityFilter.value));
     actions.appendChild(typeFilter);
 
-    const entityFilter = el('select', { class: 'form-select', style: 'max-width:180px' });
-    entityFilter.appendChild(el('option', { value: '', text: 'All Entities' }));
-    ['ATA', 'LTA'].forEach(e => entityFilter.appendChild(el('option', { value: e, text: e })));
-    entityFilter.value = entity;
-    entityFilter.addEventListener('change', () => this.refreshList(listContainer, typeFilter.value, entityFilter.value));
-    actions.appendChild(entityFilter);
+    const isManagerial = Auth.user.role === 'Admin' || Auth.user.role === 'Manager';
+    const canCrossEntity = isManagerial && Auth.user.entities.length > 1;
+
+    let entityFilter = null;
+    if (canCrossEntity) {
+      entityFilter = el('select', { class: 'form-select', style: 'max-width:180px' });
+      entityFilter.appendChild(el('option', { value: '', text: 'All Entities' }));
+      Auth.user.entities.forEach(e => entityFilter.appendChild(el('option', { value: e, text: e })));
+      entityFilter.value = entity;
+      actions.appendChild(entityFilter);
+    }
+    
+    typeFilter.addEventListener('change', () => this.refreshList(listContainer, typeFilter.value, entityFilter ? entityFilter.value : entity));
+    if (entityFilter) {
+      entityFilter.addEventListener('change', () => this.refreshList(listContainer, typeFilter.value, entityFilter.value));
+    }
 
     const listContainer = el('div');
-    this.refreshList(listContainer, '', entity);
+    this.refreshList(listContainer, '', canCrossEntity ? entity : entity);
 
     const wrapper = el('div');
     wrapper.appendChild(actions);

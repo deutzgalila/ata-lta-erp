@@ -658,7 +658,6 @@ tbody tr:hover {
   grid-auto-rows: minmax(120px, auto);
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
-  align-items: start; /* Prevents items from stretching to match the tallest sibling */
 }
 .bento-item {
   background: var(--color-surface);
@@ -667,7 +666,6 @@ tbody tr:hover {
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  height: fit-content; /* Allow height to fit content naturally */
 }
 .bento-full { grid-column: span 12; }
 .bento-half { grid-column: span 6; }
@@ -843,7 +841,7 @@ tbody tr:hover {
 /* ─── Reports & Analytics ────────────────────────────────────────────── */
 .report-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(12, 1fr);
   gap: var(--spacing-lg);
   margin-top: var(--spacing-lg);
 }
@@ -854,6 +852,19 @@ tbody tr:hover {
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   box-shadow: var(--shadow-card);
+  height: 480px; /* Fixed standardized height */
+  overflow-y: auto; /* Enable internal vertical scrolling */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar for Report Cards */
+.report-card::-webkit-scrollbar {
+  width: 6px;
+}
+.report-card::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
 }
 
 .report-card-wide {

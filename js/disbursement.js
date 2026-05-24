@@ -355,7 +355,7 @@ const Disbursement = {
     const entity = Auth.activeEntity;
     const items = DB.getWhere('disbursements', d => d.entity === entity && d.status === 'Released');
 
-    const container = el('div');
+    const container = el('div', { class: 'page' });
     
     // Top actions bar
     const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
@@ -364,7 +364,9 @@ const Disbursement = {
     topActions.appendChild(topBackBtn);
     container.appendChild(topActions);
 
-    container.appendChild(el('h2', { text: 'Reimbursement Summary' }));
+    container.appendChild(el('h2', { text: 'Reimbursement Summary', style: 'margin-bottom: var(--spacing-lg);' }));
+
+    const grid = el('div', { class: 'bento-grid' });
 
     // By Employee
     const byEmployee = {};
@@ -375,12 +377,14 @@ const Disbursement = {
       byEmployee[empName].total += d.amount;
     });
 
-    const empTable = el('table', { class: 'data-table' });
+    const empCard = el('div', { class: 'bento-item bento-half report-card' });
+    empCard.appendChild(el('h3', { text: 'By Employee', style: 'margin-top:0;' }));
+    const empTable = el('table', { class: 'report-table' });
     empTable.appendChild(el('thead', {}, [
       el('tr', {}, [
         el('th', { text: 'Employee' }),
         el('th', { text: 'Count', class: 'text-center' }),
-        el('th', { text: 'Total Reimbursed', class: 'text-center' })
+        el('th', { text: 'Total', class: 'text-center' })
       ])
     ]));
     const empBody = el('tbody');
@@ -392,8 +396,8 @@ const Disbursement = {
       ]));
     });
     empTable.appendChild(empBody);
-    container.appendChild(el('h3', { text: 'By Employee' }));
-    container.appendChild(empTable);
+    empCard.appendChild(empTable);
+    grid.appendChild(empCard);
 
     // By Category
     const byCategory = {};
@@ -403,7 +407,9 @@ const Disbursement = {
       byCategory[d.category].total += d.amount;
     });
 
-    const catTable = el('table', { class: 'data-table' });
+    const catCard = el('div', { class: 'bento-item bento-half report-card' });
+    catCard.appendChild(el('h3', { text: 'By Category', style: 'margin-top:0;' }));
+    const catTable = el('table', { class: 'report-table' });
     catTable.appendChild(el('thead', {}, [
       el('tr', {}, [
         el('th', { text: 'Category' }),
@@ -420,8 +426,8 @@ const Disbursement = {
       ]));
     });
     catTable.appendChild(catBody);
-    container.appendChild(el('h3', { text: 'By Category' }));
-    container.appendChild(catTable);
+    catCard.appendChild(catTable);
+    grid.appendChild(catCard);
 
     // Fund split
     const firmItems = items.filter(d => this.getFundSource(d) === 'Firm Fund');
@@ -429,29 +435,23 @@ const Disbursement = {
     const firmTotal = firmItems.reduce((s, d) => s + d.amount, 0);
     const clientTotal = clientItems.reduce((s, d) => s + d.amount, 0);
 
-    const fundTable = el('table', { class: 'data-table' });
-    fundTable.appendChild(el('thead', {}, [
-      el('tr', {}, [
-        el('th', { text: 'Fund Source' }),
-        el('th', { text: 'Count', class: 'text-center' }),
-        el('th', { text: 'Total', class: 'text-center' })
-      ])
+    const fundCard = el('div', { class: 'bento-item bento-full report-card' });
+    fundCard.appendChild(el('h3', { text: 'By Fund Source', style: 'margin-top:0;' }));
+    const fundSplitWrap = el('div', { class: 'fund-split', style: 'margin-bottom: var(--spacing-md);' });
+    fundSplitWrap.appendChild(el('div', { class: 'fund-box' }, [
+      el('div', { class: 'fund-label', text: 'Firm Fund' }),
+      el('div', { class: 'fund-value', text: formatPHP(firmTotal) }),
+      el('div', { style: 'font-size: 0.8rem; color: var(--color-text-muted);', text: firmItems.length + ' items' })
     ]));
-    const fundBody = el('tbody');
-    fundBody.appendChild(el('tr', {}, [
-      el('td', { text: 'Firm Fund' }),
-      el('td', { text: String(firmItems.length), class: 'text-center' }),
-      el('td', { text: formatPHP(firmTotal), class: 'text-center' })
+    fundSplitWrap.appendChild(el('div', { class: 'fund-box' }, [
+      el('div', { class: 'fund-label', text: 'Client Fund' }),
+      el('div', { class: 'fund-value', text: formatPHP(clientTotal) }),
+      el('div', { style: 'font-size: 0.8rem; color: var(--color-text-muted);', text: clientItems.length + ' items' })
     ]));
-    fundBody.appendChild(el('tr', {}, [
-      el('td', { text: 'Client Fund' }),
-      el('td', { text: String(clientItems.length), class: 'text-center' }),
-      el('td', { text: formatPHP(clientTotal), class: 'text-center' })
-    ]));
-    fundTable.appendChild(fundBody);
-    container.appendChild(el('h3', { text: 'By Fund Source' }));
-    container.appendChild(fundTable);
+    fundCard.appendChild(fundSplitWrap);
+    grid.appendChild(fundCard);
 
+    container.appendChild(grid);
     return container;
   }
 };

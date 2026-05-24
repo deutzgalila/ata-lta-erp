@@ -11,9 +11,12 @@ const Clients = {
     container.appendChild(el('h1', { text: 'Clients' }));
 
     const actions = el('div', { class: 'actions-bar' });
-    const addBtn = el('button', { class: 'btn btn-primary', text: 'Add Client' });
-    addBtn.addEventListener('click', () => this.showForm());
-    actions.appendChild(addBtn);
+    
+    if (Auth.user.role === 'Admin') {
+      const addBtn = el('button', { class: 'btn btn-primary', text: 'Add Client' });
+      addBtn.addEventListener('click', () => this.showForm());
+      actions.appendChild(addBtn);
+    }
 
     const search = el('input', { type: 'text', placeholder: 'Search by name or TIN...', class: 'search-input' });
     search.addEventListener('input', debounce(() => this.renderList(listContainer, search.value.trim()), 200));

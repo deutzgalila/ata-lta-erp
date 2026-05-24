@@ -658,6 +658,7 @@ tbody tr:hover {
   grid-auto-rows: minmax(120px, auto);
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
+  align-items: start; /* Prevents items from stretching to match the tallest sibling */
 }
 .bento-item {
   background: var(--color-surface);
@@ -666,6 +667,7 @@ tbody tr:hover {
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
+  height: fit-content; /* Allow height to fit content naturally */
 }
 .bento-full { grid-column: span 12; }
 .bento-half { grid-column: span 6; }

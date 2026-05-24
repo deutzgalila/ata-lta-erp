@@ -428,52 +428,56 @@ const DMS = {
       handoverSection.appendChild(logTable);
 
       // Record Handover button and inline form
-      const recordBtn = el('button', { class: 'btn btn-primary', text: 'Record Handover' });
-      const handoverForm = el('form', { class: 'form-stacked hidden' });
+      if (Auth.user.department === 'Documentations') {
+        const recordBtn = el('button', { class: 'btn btn-primary', text: 'Record Handover' });
+        const handoverForm = el('form', { class: 'form-stacked hidden' });
 
-      const recGroup = el('div', { class: 'form-group' });
-      recGroup.appendChild(el('label', { text: 'Recipient Name *' }));
-      recGroup.appendChild(el('input', { type: 'text', name: 'recipient', required: true }));
-      handoverForm.appendChild(recGroup);
+        const recGroup = el('div', { class: 'form-group' });
+        recGroup.appendChild(el('label', { text: 'Recipient Name *' }));
+        recGroup.appendChild(el('input', { type: 'text', name: 'recipient', required: true }));
+        handoverForm.appendChild(recGroup);
 
-      const dateGroup = el('div', { class: 'form-group' });
-      dateGroup.appendChild(el('label', { text: 'Handover Date *' }));
-      dateGroup.appendChild(el('input', { type: 'date', name: 'handoverDate', value: new Date().toISOString().slice(0, 10), required: true }));
-      handoverForm.appendChild(dateGroup);
+        const dateGroup = el('div', { class: 'form-group' });
+        dateGroup.appendChild(el('label', { text: 'Handover Date *' }));
+        dateGroup.appendChild(el('input', { type: 'date', name: 'handoverDate', value: new Date().toISOString().slice(0, 10), required: true }));
+        handoverForm.appendChild(dateGroup);
 
-      const methodGroup = el('div', { class: 'form-group' });
-      methodGroup.appendChild(el('label', { text: 'Method *' }));
-      const methodSel = el('select', { name: 'method', required: true });
-      methodSel.appendChild(el('option', { value: '', text: '— Select Method —' }));
-      ['Pickup', 'Courier', 'Email', 'In-Person'].forEach(m => {
-        methodSel.appendChild(el('option', { value: m, text: m }));
-      });
-      methodGroup.appendChild(methodSel);
-      handoverForm.appendChild(methodGroup);
+        const methodGroup = el('div', { class: 'form-group' });
+        methodGroup.appendChild(el('label', { text: 'Method *' }));
+        const methodSel = el('select', { name: 'method', required: true });
+        methodSel.appendChild(el('option', { value: '', text: '— Select Method —' }));
+        ['Pickup', 'Courier', 'Email', 'In-Person'].forEach(m => {
+          methodSel.appendChild(el('option', { value: m, text: m }));
+        });
+        methodGroup.appendChild(methodSel);
+        handoverForm.appendChild(methodGroup);
 
-      const hfBtnGroup = el('div', { class: 'form-group form-actions' });
-      const saveBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Save Handover' });
-      const cancelHfBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: 'Cancel' });
-      cancelHfBtn.addEventListener('click', () => {
-        handoverForm.classList.add('hidden');
-        recordBtn.classList.remove('hidden');
-      });
-      hfBtnGroup.appendChild(saveBtn);
-      hfBtnGroup.appendChild(cancelHfBtn);
-      handoverForm.appendChild(hfBtnGroup);
+        const hfBtnGroup = el('div', { class: 'form-group form-actions' });
+        const saveBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Save Handover' });
+        const cancelHfBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: 'Cancel' });
+        cancelHfBtn.addEventListener('click', () => {
+          handoverForm.classList.add('hidden');
+          recordBtn.classList.remove('hidden');
+        });
+        hfBtnGroup.appendChild(saveBtn);
+        hfBtnGroup.appendChild(cancelHfBtn);
+        handoverForm.appendChild(hfBtnGroup);
 
-      handoverForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.recordHandover(this.detailId, new FormData(handoverForm));
-      });
+        handoverForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          this.recordHandover(this.detailId, new FormData(handoverForm));
+        });
 
-      recordBtn.addEventListener('click', () => {
-        handoverForm.classList.remove('hidden');
-        recordBtn.classList.add('hidden');
-      });
+        recordBtn.addEventListener('click', () => {
+          handoverForm.classList.remove('hidden');
+          recordBtn.classList.add('hidden');
+        });
 
-      handoverSection.appendChild(recordBtn);
-      handoverSection.appendChild(handoverForm);
+        handoverSection.appendChild(recordBtn);
+        handoverSection.appendChild(handoverForm);
+      } else {
+        handoverSection.appendChild(el('p', { class: 'empty-state', text: 'Only Documentation staff can record handovers.' }));
+      }
       container.appendChild(handoverSection);
     }
 

@@ -26,6 +26,20 @@ const Disbursement = {
       backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
       titleBar.appendChild(backBtn);
       container.appendChild(titleBar);
+    } else if (this.view === 'templates') {
+      const titleBar = el('div', { class: 'page-title-bar-v2' });
+      const h1 = el('h1', { class: 'breadcrumb-h1' });
+      const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Disbursement' });
+      baseLink.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
+      h1.appendChild(baseLink);
+      h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
+      h1.appendChild(document.createTextNode('Templates'));
+      titleBar.appendChild(h1);
+      
+      const backBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
+      backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
+      titleBar.appendChild(backBtn);
+      container.appendChild(titleBar);
     } else {
       container.appendChild(el('h1', { text: 'Disbursement' }));
     }
@@ -810,24 +824,18 @@ const Disbursement = {
     const entity = Auth.activeEntity;
     const templates = DB.getWhere('disbursementTemplates', t => t.entity === entity);
 
-    const container = el('div');
+    const wrapper = el('div');
 
-    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
-    const backBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-    topActions.appendChild(backBtn);
-
+    const actions = el('div', { class: 'actions-bar' });
     const newTemplateBtn = el('button', { class: 'btn btn-primary btn-sm', text: '+ New Template' });
     newTemplateBtn.addEventListener('click', () => this.showTemplateForm());
-    topActions.appendChild(newTemplateBtn);
+    actions.appendChild(newTemplateBtn);
 
-    container.appendChild(topActions);
-
-    container.appendChild(el('h2', { text: 'Disbursement Templates', style: 'margin-bottom: var(--spacing-lg);' }));
+    wrapper.appendChild(actions);
 
     if (templates.length === 0) {
-      container.appendChild(el('p', { text: 'No templates found.', class: 'empty-state' }));
-      return container;
+      wrapper.appendChild(el('p', { text: 'No templates found.', class: 'empty-state' }));
+      return wrapper;
     }
 
     const table = el('table', { class: 'data-table' });

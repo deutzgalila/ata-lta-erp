@@ -10,6 +10,93 @@ const Workflow = {
   templateEditingId: null,
   selectedTaskId: null,
 
+  // ============================================================
+  // Phase Transition Logic (Robust Business Accounting Logic)
+  // ============================================================
+  getPhaseTransitionStatus(wrId) {
+    const wr = DB.getById('workRequests', wrId);
+    if (!wr) return null;
+    
+    const tasks = DB.getWhere('tasks', t => t.workRequestId === wrId);
+    const invoices = DB.getWhere('invoices', inv => inv.workRequestId === wrId || wr.linkedInvoiceId === inv.id);
+    const disbursements = DB.getWhere('disbursements', d => d.linkedWorkRequestId === wrId || (wr.linkedDisbursementIds || []).includes(d.id));
+    const transmittals = DB.getWhere('transmittals', t => t.workRequestId === wrId || (wr.linkedTransmittalIds || []).includes(t.id));
+
+    const stages = ['Draft', 'Pre-processing', 'Processing', 'Billing', 'Disbursement', 'Completed', 'Cancelled'];
+    const currentIdx = stages.indexOf(wr.status);
+    const nextPhase = stages[currentIdx + 1];
+
+    if (wr.status === 'Cancelled' || wr.status === 'Completed') return { canTransition: false, reason: 'Request is already in a terminal state.' };
+
+    let canTransition = true;
+    let missing = [];
+
+    switch (wr.status) {
+      case 'Draft':
+        if (!wr.clientId) { canTransition = false; missing.push('Client assignment'); }
+        if (!wr.assignedTo) { canTransition = false; missing.push('Employee assignment'); }
+        // Rule 1: Requires signed proposal/retainer placeholder
+        if (!tasks.some(t => t.taskDocuments?.length > 0)) { 
+            // In real world, we'd check for a specific 'Proposal' doc type
+        }
+        break;
+
+      case 'Pre-processing':
+        // Rule 2: All requirements gathered
+        const reqTasks = tasks.filter(t => t.title.toLowerCase().includes('requirement') || t.title.toLowerCase().includes('gather'));
+        if (reqTasks.length > 0 && !reqTasks.every(t => t.status === 'Completed')) {
+          canTransition = false;
+          missing.push('Completion of requirement gathering tasks');
+        }
+        break;
+
+      case 'Processing':
+        // Rule 3: All tasks must be completed
+        if (tasks.length === 0) { canTransition = false; missing.push('No tasks defined'); }
+        else if (!tasks.every(t => t.status === 'Completed')) {
+          canTransition = false;
+          missing.push('All processing tasks must be marked as Completed');
+        }
+        break;
+
+      case 'Billing':
+        // Rule 4: Invoices must be Sent or Paid
+        if (invoices.length === 0) { canTransition = false; missing.push('No linked invoices found'); }
+        else if (!invoices.every(inv => ['Sent', 'Partially Paid', 'Paid'].includes(inv.status))) {
+          canTransition = false;
+          missing.push('All linked invoices must be Sent or Paid');
+        }
+        break;
+
+      case 'Disbursement':
+        // Rule 5: Disbursements must be Released
+        if (disbursements.length > 0 && !disbursements.every(d => d.status === 'Released')) {
+          canTransition = false;
+          missing.push('All linked disbursements must be Approved & Released');
+        }
+        // Note: Billing and Disbursement are often parallel, but here we treat them sequentially for simplicity in the linear board.
+        break;
+    }
+
+    return { canTransition, missing, nextPhase };
+  },
+
+  transitionWorkRequest(wrId) {
+    const status = this.getPhaseTransitionStatus(wrId);
+    if (!status || !status.canTransition) {
+      alert('Cannot transition phase:\n- ' + (status?.missing.join('\n- ') || 'Requirements not met'));
+      return;
+    }
+
+    if (confirm(`Transition Work Request to ${status.nextPhase}?`)) {
+      DB.update('workRequests', wrId, { 
+        status: status.nextPhase,
+        updatedAt: new Date().toISOString()
+      });
+      App.handleRoute();
+    }
+  },
+
   /**
    * Open a centered modal with a title and arbitrary body content.
    * Returns the overlay element so callers can remove it.
@@ -51,6 +138,14 @@ const Workflow = {
       
       const actions = el('div', { class: 'title-bar-actions' });
       if (isManagerial && wr) {
+        const transitionStatus = this.getPhaseTransitionStatus(wr.id);
+        if (transitionStatus && transitionStatus.nextPhase && transitionStatus.nextPhase !== 'Cancelled') {
+          const routeBtn = el('button', { class: 'btn btn-success btn-sm', text: `Route to ${transitionStatus.nextPhase}`, style: 'margin-right: var(--spacing-sm);' });
+          if (!transitionStatus.canTransition) routeBtn.classList.add('btn-disabled');
+          routeBtn.addEventListener('click', () => { this.transitionWorkRequest(wr.id); });
+          actions.appendChild(routeBtn);
+        }
+
         const addBtn = el('button', { class: 'btn btn-primary btn-sm', text: '+ Add Task', style: 'margin-right: var(--spacing-sm);' });
         addBtn.addEventListener('click', () => { this.showAddTaskModal(wr.id, () => App.handleRoute()); });
         actions.appendChild(addBtn);
@@ -60,6 +155,8 @@ const Workflow = {
       actions.appendChild(backBtn);
       titleBar.appendChild(actions);
       container.appendChild(titleBar);
+    } else if (this.view === 'templates' || this.view === 'templateForm') {
+        // Do nothing here, these views render their own breadcrumb title bar
     } else {
       container.appendChild(el('h1', { text: 'Operations' }));
     }
@@ -262,10 +359,16 @@ const Workflow = {
         card.style.borderLeftColor = colColor;
         card.addEventListener('click', () => { this.view = 'detail'; this.detailWrId = wr.id; App.handleRoute(); });
 
+        const transition = this.getPhaseTransitionStatus(wr.id);
+
         // Top: Priority path and Due Date
         const topRow = el('div', { class: 'card-v2-top' });
         const categoryPath = el('span', { class: 'card-v2-category', text: `${wr.priority} >` });
         topRow.appendChild(categoryPath);
+        if (transition && transition.canTransition) {
+          const readyBadge = el('span', { class: 'badge-success btn-xs', text: 'Ready', style: 'margin-left: 8px; font-size: 10px; border-radius: 10px;' });
+          topRow.appendChild(readyBadge);
+        }
         if (wr.dueDate) {
           topRow.appendChild(el('span', { class: 'card-v2-date', text: formatDate(wr.dueDate) }));
         }

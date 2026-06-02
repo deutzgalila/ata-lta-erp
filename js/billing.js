@@ -149,18 +149,22 @@ const Billing = {
     const table = el('table', { class: 'data-table' });
     const thead = el('thead');
     const thr = el('tr');
-    ['Invoice #', 'Client', 'Issue Date', 'Total', 'Status', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
+    ['Invoice #', 'Client', 'Issue Date', 'Total', 'Paid', 'Balance', 'Status', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
     thead.appendChild(thr);
     table.appendChild(thead);
 
     const tbody = el('tbody');
     invoices.forEach(inv => {
       const client = DB.getById('clients', inv.clientId);
+      const paid = this.getPaidAmount(inv);
+      const balance = inv.total - paid;
       const tr = el('tr');
       tr.appendChild(el('td', { text: inv.invoiceNumber }));
       tr.appendChild(el('td', { text: client?.name || '—' }));
       tr.appendChild(el('td', { text: formatDate(inv.issueDate) }));
       tr.appendChild(el('td', { text: formatPHP(inv.total) }));
+      tr.appendChild(el('td', { text: formatPHP(paid) }));
+      tr.appendChild(el('td', { text: formatPHP(balance) }));
       tr.appendChild(el('td')).appendChild(this.statusBadge(inv.status));
       const tdAct = el('td');
       const viewBtn = el('button', { class: 'btn btn-ghost btn-sm', text: 'View' });
@@ -186,9 +190,12 @@ const Billing = {
       const colInvs = invoices.filter(inv => inv.status === st);
       colInvs.forEach(inv => {
         const client = DB.getById('clients', inv.clientId);
+        const paid = this.getPaidAmount(inv);
+        const balance = inv.total - paid;
         const card = el('div', { class: 'board-card' });
         card.appendChild(el('div', { class: 'board-card-title', text: inv.invoiceNumber }));
-        card.appendChild(el('div', { class: 'board-card-meta', text: (client?.name || '—') + ' | ' + formatPHP(inv.total) }));
+        card.appendChild(el('div', { class: 'board-card-meta', text: (client?.name || '—') + ' | Total: ' + formatPHP(inv.total) }));
+        card.appendChild(el('div', { class: 'board-card-meta', text: 'Paid: ' + formatPHP(paid) + ' | Bal: ' + formatPHP(balance), style: 'font-size:0.75rem;color:var(--color-text-muted);' }));
         card.addEventListener('click', () => { this.view = 'detail'; this.detailId = inv.id; App.handleRoute(); });
         col.appendChild(card);
       });
@@ -206,9 +213,11 @@ const Billing = {
     invoices.forEach(inv => {
       const client = DB.getById('clients', inv.clientId);
       const row = el('div', { class: 'list-item' });
+      const paid = this.getPaidAmount(inv);
+      const balance = inv.total - paid;
       row.appendChild(el('div', {}, [
         el('div', { class: 'list-item-title', text: inv.invoiceNumber + ' — ' + (client?.name || '—') }),
-        el('div', { class: 'list-item-meta', text: formatDate(inv.issueDate) + ' | ' + formatPHP(inv.total) })
+        el('div', { class: 'list-item-meta', text: formatDate(inv.issueDate) + ' | ' + formatPHP(inv.total) + ' | Paid: ' + formatPHP(paid) + ' | Bal: ' + formatPHP(balance) })
       ]));
       row.appendChild(this.statusBadge(inv.status));
       row.addEventListener('click', () => { this.view = 'detail'; this.detailId = inv.id; App.handleRoute(); });
@@ -500,6 +509,9 @@ const Billing = {
     const voucherBtn = el('button', { class: 'btn btn-ghost', text: 'Print Voucher' });
     voucherBtn.addEventListener('click', () => this.printVoucher(inv));
     topRight.appendChild(voucherBtn);
+    const voucherNoHeaderBtn = el('button', { class: 'btn btn-ghost', text: 'Print Voucher (No Header)' });
+    voucherNoHeaderBtn.addEventListener('click', () => this.printVoucherNoHeader(inv));
+    topRight.appendChild(voucherNoHeaderBtn);
     topActions.appendChild(topRight);
     container.appendChild(topActions);
 
@@ -563,7 +575,9 @@ const Billing = {
         pBody.appendChild(ptr);
       });
       pTable.appendChild(pBody);
-      payHist.appendChild(pTable);
+      const pTableWrap = el('div', { style: 'overflow-x:auto;' });
+      pTableWrap.appendChild(pTable);
+      payHist.appendChild(pTableWrap);
       container.appendChild(payHist);
     }
 
@@ -638,41 +652,82 @@ const Billing = {
     return container;
   },
 
-  printVoucher(inv) {
+  _buildVoucherDoc(inv, opts = {}) {
     const client = DB.getById('clients', inv.clientId);
+    const entity = inv.entity || '';
     const w = window.open('', '_blank');
     if (!w) return;
     const d = w.document;
     const title = d.createElement('title');
-    title.textContent = 'Voucher ' + inv.invoiceNumber;
+    title.textContent = (opts.title || 'Invoice') + ' ' + inv.invoiceNumber;
     d.head.appendChild(title);
+
     const style = d.createElement('style');
-    style.textContent = 'body{font-family:sans-serif;padding:40px;max-width:600px;margin:0 auto;}h1{font-size:1.25rem;margin-bottom:8px;}.meta{color:#666;font-size:0.875rem;margin-bottom:24px;}table{width:100%;border-collapse:collapse;margin:16px 0;}th,td{text-align:left;padding:8px 0;border-bottom:1px solid #ddd;}.total{font-weight:700;font-size:1.125rem;margin-top:16px;}.footer{margin-top:40px;font-size:0.75rem;color:#999;text-align:center;}';
+    style.textContent = `
+      body{font-family:sans-serif;padding:40px;max-width:700px;margin:0 auto;color:#000;}
+      .seller-header{text-align:center;margin-bottom:24px;border-bottom:2px solid #000;padding-bottom:16px;}
+      .seller-header h1{font-size:1.5rem;margin:4px 0;}
+      .seller-header p{margin:2px 0;font-size:0.875rem;}
+      .buyer-section{margin-bottom:24px;}
+      .buyer-section p{margin:4px 0;}
+      h2{font-size:1.125rem;margin-bottom:8px;}
+      .meta{color:#333;font-size:0.875rem;margin-bottom:16px;}
+      table{width:100%;border-collapse:collapse;margin:16px 0;}
+      th,td{text-align:left;padding:8px;border-bottom:1px solid #000;}
+      th{background:#f5f5f5;}
+      .num,.money{text-align:right;}
+      .totals{margin-top:16px;text-align:right;}
+      .totals .row{margin:4px 0;}
+      .totals .grand{font-weight:700;font-size:1.125rem;border-top:2px solid #000;padding-top:8px;margin-top:8px;}
+      .footer{margin-top:40px;font-size:0.75rem;color:#666;text-align:center;border-top:1px solid #ccc;padding-top:12px;}
+    `;
     d.head.appendChild(style);
 
-    d.body.appendChild(d.createElement('h1')).textContent = 'Payment Voucher';
+    // Seller header
+    if (!opts.noHeader) {
+      const seller = d.createElement('div');
+      seller.className = 'seller-header';
+      const h1 = d.createElement('h1');
+      h1.textContent = entity + ' Accounting Firm';
+      seller.appendChild(h1);
+      seller.appendChild(d.createElement('p')).textContent = 'TIN: 000-000-000-0000 | Branch Code: 0001';
+      seller.appendChild(d.createElement('p')).textContent = 'Address: [Firm Address]';
+      d.body.appendChild(seller);
+    }
+
+    // Document title
+    const docTitle = d.createElement('h2');
+    docTitle.textContent = opts.noHeader ? 'Payment Voucher' : 'Sales Invoice';
+    d.body.appendChild(docTitle);
+
+    // Meta
     const meta = d.createElement('div');
     meta.className = 'meta';
-    meta.textContent = inv.invoiceNumber + ' | ' + formatDate(inv.issueDate);
+    meta.textContent = 'Invoice #: ' + inv.invoiceNumber + ' | Date: ' + formatDate(inv.issueDate) + ' | Due: ' + formatDate(inv.dueDate);
     d.body.appendChild(meta);
 
-    const p = d.createElement('p');
-    const strong = d.createElement('strong');
-    strong.textContent = 'Client: ';
-    p.appendChild(strong);
-    p.appendChild(d.createTextNode(client ? client.name : '—'));
-    d.body.appendChild(p);
+    // Buyer
+    const buyer = d.createElement('div');
+    buyer.className = 'buyer-section';
+    const bP = d.createElement('p');
+    const bStrong = d.createElement('strong');
+    bStrong.textContent = 'Sold To: ';
+    bP.appendChild(bStrong);
+    bP.appendChild(d.createTextNode(client ? client.name : '—'));
+    buyer.appendChild(bP);
+    buyer.appendChild(d.createElement('p')).textContent = 'TIN: ' + (client?.tin || '—');
+    d.body.appendChild(buyer);
 
+    // Line items table with qty, unit cost, total
     const table = d.createElement('table');
     const thead = d.createElement('thead');
     const thr = d.createElement('tr');
-    const thDesc = d.createElement('th');
-    thDesc.textContent = 'Description';
-    thr.appendChild(thDesc);
-    const thAmt = d.createElement('th');
-    thAmt.style.textAlign = 'right';
-    thAmt.textContent = 'Amount';
-    thr.appendChild(thAmt);
+    ['Description', 'Qty', 'Unit Cost', 'Total'].forEach((h, i) => {
+      const th = d.createElement('th');
+      th.textContent = h;
+      if (i > 0) th.className = 'num';
+      thr.appendChild(th);
+    });
     thead.appendChild(thr);
     table.appendChild(thead);
 
@@ -680,28 +735,54 @@ const Billing = {
     inv.lineItems.forEach(li => {
       const tr = d.createElement('tr');
       const tdDesc = d.createElement('td');
-      tdDesc.textContent = li.description || '';
+      tdDesc.textContent = (li.type ? '[' + li.type + '] ' : '') + (li.description || '');
       tr.appendChild(tdDesc);
-      const tdAmt = d.createElement('td');
-      tdAmt.style.textAlign = 'right';
-      tdAmt.textContent = formatPHP(li.amount);
-      tr.appendChild(tdAmt);
+      const tdQty = d.createElement('td');
+      tdQty.className = 'num';
+      tdQty.textContent = li.qty || '1';
+      tr.appendChild(tdQty);
+      const tdUnit = d.createElement('td');
+      tdUnit.className = 'num';
+      tdUnit.textContent = formatPHP(li.unitCost || li.amount);
+      tr.appendChild(tdUnit);
+      const tdTotal = d.createElement('td');
+      tdTotal.className = 'num';
+      tdTotal.textContent = formatPHP((parseFloat(li.qty) || 1) * (parseFloat(li.unitCost) || parseFloat(li.amount) || 0));
+      tr.appendChild(tdTotal);
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     d.body.appendChild(table);
 
-    const totalDiv = d.createElement('div');
-    totalDiv.className = 'total';
-    totalDiv.textContent = 'Total: ' + formatPHP(inv.total);
-    d.body.appendChild(totalDiv);
+    // Totals
+    const subtotal = this.getSubtotal(inv);
+    const totals = d.createElement('div');
+    totals.className = 'totals';
+    const subRow = d.createElement('div');
+    subRow.className = 'row';
+    subRow.textContent = 'Subtotal: ' + formatPHP(subtotal);
+    totals.appendChild(subRow);
+    const grandRow = d.createElement('div');
+    grandRow.className = 'grand';
+    grandRow.textContent = 'Total: ' + formatPHP(inv.total);
+    totals.appendChild(grandRow);
+    d.body.appendChild(totals);
 
+    // Footer
     const footer = d.createElement('div');
     footer.className = 'footer';
     footer.textContent = 'This document is not valid for claim of input tax.';
     d.body.appendChild(footer);
 
     setTimeout(() => w.print(), 200);
+  },
+
+  printVoucher(inv) {
+    this._buildVoucherDoc(inv, { title: 'Sales Invoice' });
+  },
+
+  printVoucherNoHeader(inv) {
+    this._buildVoucherDoc(inv, { title: 'Payment Voucher', noHeader: true });
   },
 
   // ============================================================

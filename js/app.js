@@ -179,7 +179,7 @@ const App = {
   getPreferredViewMode(module) {
     const key = `erp_preferred_view_${module}`;
     const stored = localStorage.getItem(key);
-    return stored === 'list' || stored === 'grid' || stored === 'table' || stored === 'board' ? stored : 'list';
+    return stored === 'list' || stored === 'table' || stored === 'board' ? stored : 'list';
   },
 
   setPreferredViewMode(module, mode) {

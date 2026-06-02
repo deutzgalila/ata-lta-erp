@@ -68,20 +68,6 @@ const Transmittal = {
     addBtn.addEventListener('click', () => { this.view = 'form'; this.detailId = null; App.handleRoute(); });
     actions.appendChild(addBtn);
 
-    // View mode toggle
-    const viewToggle = el('div', { class: 'view-mode-toggle' });
-    [['Table', 'table'], ['Board', 'board'], ['List', 'list']].forEach(([label, mode]) => {
-      const btn = el('button', { text: label });
-      if (this.listViewMode === mode) btn.classList.add('active');
-      btn.addEventListener('click', () => {
-        App.setPreferredViewMode('transmittals', mode);
-        this.listViewMode = mode;
-        this.refreshList(listContainer, wrFilter.value, clientFilter.value, statusFilter.value, dateFrom.value, dateTo.value);
-      });
-      viewToggle.appendChild(btn);
-    });
-    actions.appendChild(viewToggle);
-
     const wrapper = el('div');
     wrapper.appendChild(actions);
 
@@ -115,6 +101,20 @@ const Transmittal = {
     filtersBar.appendChild(dateTo);
 
     wrapper.appendChild(filtersBar);
+
+    // View mode toggle
+    const viewToggle = el('div', { class: 'view-mode-toggle' });
+    [['Table', 'table'], ['Board', 'board'], ['List', 'list']].forEach(([label, mode]) => {
+      const btn = el('button', { text: label });
+      if (this.listViewMode === mode) btn.classList.add('active');
+      btn.addEventListener('click', () => {
+        App.setPreferredViewMode('transmittals', mode);
+        this.listViewMode = mode;
+        this.refreshList(listContainer, wrFilter.value, clientFilter.value, statusFilter.value, dateFrom.value, dateTo.value);
+      });
+      viewToggle.appendChild(btn);
+    });
+    wrapper.appendChild(viewToggle);
 
     const listContainer = el('div');
     wrapper.appendChild(listContainer);
@@ -249,13 +249,16 @@ const Transmittal = {
     const headerBar = el('div', { class: 'form-header-bar' });
     headerBar.appendChild(el('h2', { text: isNew ? 'Create Transmittal' : 'Edit Transmittal' }));
     const headerActions = el('div', { class: 'form-actions-top' });
+    const saveTopBtn = el('button', { type: 'button', class: 'btn btn-primary', text: isNew ? 'Create Transmittal' : 'Save Changes' });
+    saveTopBtn.addEventListener('click', () => { this.submitForm(form); });
+    headerActions.appendChild(saveTopBtn);
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: 'Cancel' });
     cancelBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
     headerActions.appendChild(cancelBtn);
     headerBar.appendChild(headerActions);
     container.appendChild(headerBar);
 
-    const form = el('form', { class: 'form-stacked' });
+    const form = el('form', { id: 'transmittal-form', class: 'form-stacked' });
 
     // Work Request
     const wrGroup = el('div', { class: 'form-group' });
@@ -338,11 +341,6 @@ const Transmittal = {
     notesTextarea.textContent = existing ? (existing.notes || '') : '';
     notesGroup.appendChild(notesTextarea);
     form.appendChild(notesGroup);
-
-    const btnGroup = el('div', { class: 'form-group form-actions' });
-    const saveBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: isNew ? 'Create Transmittal' : 'Save Changes' });
-    btnGroup.appendChild(saveBtn);
-    form.appendChild(btnGroup);
 
     form.addEventListener('submit', (e) => { e.preventDefault(); this.submitForm(form); });
 

@@ -10,6 +10,30 @@ const Workflow = {
   templateEditingId: null,
   selectedTaskId: null,
 
+  /**
+   * Open a centered modal with a title and arbitrary body content.
+   * Returns the overlay element so callers can remove it.
+   */
+  showModal(title, bodyEl, onClose) {
+    const overlay = el('div', { class: 'modal-overlay' });
+    const modal = el('div', { class: 'modal' });
+    const header = el('div', { class: 'modal-header' });
+    header.appendChild(el('h3', { class: 'modal-title', text: title }));
+    const closeBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '✕' });
+    closeBtn.addEventListener('click', () => { overlay.remove(); if (onClose) onClose(); });
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
+    const body = el('div', { class: 'modal-body' });
+    body.appendChild(bodyEl);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { overlay.remove(); if (onClose) onClose(); }
+    });
+    return overlay;
+  },
+
   render() {
     const container = el('div', { class: 'page' });
     container.appendChild(el('h1', { text: 'Operations' }));
@@ -111,7 +135,7 @@ const Workflow = {
     const refresh = () => {
       while (contentContainer.firstChild) contentContainer.removeChild(contentContainer.firstChild);
       let wrs = DB.getWhere('workRequests', r => r.entity === entity);
-      if (!isManagerial) {
+      if (!isManagerial && !Auth.can('dms:handover')) {
         const myTasks = DB.getWhere('tasks', t => t.assigneeId === Auth.user.id || t.assignedTo === Auth.user.id);
         const myWrIds = new Set(myTasks.map(t => t.workRequestId));
         wrs = wrs.filter(r => myWrIds.has(r.id) || r.assignedTo === Auth.user.id);
@@ -664,9 +688,16 @@ const Workflow = {
 
     tasks.forEach(t => {
       const assignee = DB.getById('users', t.assigneeId || t.assignedTo);
+      const isAssignee = (t.assigneeId || t.assignedTo) === Auth.user?.id;
+      const isDocStaff = Auth.user?.name?.toLowerCase().includes('documentation') ||
+                         Auth.user?.email?.toLowerCase().startsWith('docs@');
+      const sameEntity = wr.entity?.toUpperCase() === Auth.activeEntity;
+      const canAddTimeLog = isAssignee;
+      const canAddDocument = isAssignee || (isDocStaff && sameEntity);
+
       const tr = el('tr');
       tr.appendChild(el('td', { text: t.title }));
-      
+
       const assigneeTd = el('td');
       const assigneeWrap = el('div', { class: 'assignee-chip' });
       if (assignee && assignee.avatarUrl) {
@@ -741,6 +772,214 @@ const Workflow = {
       tdAct.appendChild(statusSel);
       tr.appendChild(tdAct);
       tbody.appendChild(tr);
+
+      // Expandable inline row: documents, time logs today, comments (accordion)
+      const expandTr = el('tr', { class: 'task-expand' });
+      const expandTd = el('td', { colspan: 6 });
+      const expandInner = el('div', { class: 'task-expand-inner' });
+
+      const buildAccordionPanel = (title, contentEl, initiallyOpen = true) => {
+        const panel = el('div', { class: 'accordion-panel' + (initiallyOpen ? '' : ' collapsed') });
+        const header = el('div', { class: 'accordion-header', text: title });
+        header.addEventListener('click', () => panel.classList.toggle('collapsed'));
+        const body = el('div', { class: 'accordion-content' });
+        body.appendChild(contentEl);
+        panel.appendChild(header);
+        panel.appendChild(body);
+        return panel;
+      };
+
+      // ── Attached Documents ──
+      const docs = t.taskDocuments || [];
+      const docsContent = el('div');
+      if (docs.length === 0) {
+        docsContent.appendChild(el('p', { class: 'empty-state', text: 'No documents attached.' }));
+      } else {
+        const docList = el('div');
+        docs.forEach(d => {
+          const uploader = DB.getById('users', d.uploaderId);
+          const docRow = el('div', { style: 'margin-bottom:var(--spacing-sm);' });
+          let docText = (d.filename || 'Untitled') + ' • ' + formatDate(d.uploadDate) + ' • ' + (uploader?.name || '—');
+          docRow.appendChild(el('span', { text: docText }));
+          if (d.dmsId) {
+            const dmsLink = el('a', { text: 'View in DMS', href: 'javascript:void(0)', style: 'margin-left:var(--spacing-sm);' });
+            dmsLink.addEventListener('click', () => {
+              location.hash = '#dms';
+              DMS.view = 'detail';
+              DMS.detailId = d.dmsId;
+              App.handleRoute();
+            });
+            docRow.appendChild(dmsLink);
+          }
+          docList.appendChild(docRow);
+        });
+        docsContent.appendChild(docList);
+      }
+      if (canAddDocument) {
+        const addDocBtn = el('button', { class: 'btn btn-primary btn-sm', text: '+ Add Document', style: 'margin-top:var(--spacing-sm);' });
+        addDocBtn.addEventListener('click', () => {
+          const form = el('form', { class: 'form-stacked' });
+          form.appendChild(el('div', { class: 'form-group' }, [
+            el('label', { text: 'Select File *' }),
+            el('input', { type: 'file', name: 'taskDocFile', required: true })
+          ]));
+          form.appendChild(el('div', { class: 'form-group' }, [
+            el('label', { text: 'Description' }),
+            el('input', { type: 'text', name: 'taskDocDesc' })
+          ]));
+          const submitBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Upload Document' });
+          form.appendChild(submitBtn);
+          const overlay = this.showModal('Add Document', form, null);
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fileInput = form.querySelector('input[name="taskDocFile"]');
+            const descInput = form.querySelector('input[name="taskDocDesc"]');
+            const file = fileInput.files[0];
+            if (!file) return;
+            const entry = {
+              filename: file.name,
+              size: file.size,
+              type: file.type,
+              uploadDate: new Date().toISOString().slice(0, 10),
+              uploaderId: Auth.user.id,
+              description: descInput.value || ''
+            };
+            const updatedDocs = [...(t.taskDocuments || []), entry];
+            DB.update('tasks', t.id, { taskDocuments: updatedDocs, updatedAt: new Date().toISOString() });
+            overlay.remove();
+            App.handleRoute();
+          });
+        });
+        docsContent.appendChild(addDocBtn);
+      }
+      expandInner.appendChild(buildAccordionPanel('Attached Documents', docsContent, true));
+
+      // ── Time Log Today ──
+      const today = new Date().toISOString().slice(0, 10);
+      const todayLogs = (t.timeLogs || []).filter(l => l.date === today);
+      const logsContent = el('div');
+      if (todayLogs.length === 0) {
+        logsContent.appendChild(el('p', { class: 'empty-state', text: "No time logged today — you've got this!" }));
+      } else {
+        const logTable = el('table', { class: 'data-table' });
+        logTable.appendChild(el('thead', {}, [
+          el('tr', {}, [
+            el('th', { text: 'Start' }),
+            el('th', { text: 'End' }),
+            el('th', { text: 'Hours' }),
+            el('th', { text: 'Note' })
+          ])
+        ]));
+        const logBody = el('tbody');
+        todayLogs.forEach(l => {
+          logBody.appendChild(el('tr', {}, [
+            el('td', { text: l.startTime || '—' }),
+            el('td', { text: l.endTime || '—' }),
+            el('td', { text: String(l.hours) }),
+            el('td', { text: l.note || '—' })
+          ]));
+        });
+        logTable.appendChild(logBody);
+        logsContent.appendChild(logTable);
+      }
+      if (canAddTimeLog) {
+        const addLogBtn = el('button', { class: 'btn btn-primary btn-sm', text: '+ Add Time Log', style: 'margin-top:var(--spacing-sm);' });
+        addLogBtn.addEventListener('click', () => {
+          const form = el('form', { class: 'form-stacked' });
+          form.appendChild(el('div', { class: 'form-group' }, [
+            el('label', { text: 'Date *' }),
+            el('input', { type: 'date', name: 'logDate', value: today, required: true })
+          ]));
+          form.appendChild(el('div', { class: 'form-group' }, [
+            el('label', { text: 'Start Time *' }),
+            el('input', { type: 'time', name: 'logStart', required: true })
+          ]));
+          form.appendChild(el('div', { class: 'form-group' }, [
+            el('label', { text: 'End Time *' }),
+            el('input', { type: 'time', name: 'logEnd', required: true })
+          ]));
+          form.appendChild(el('div', { class: 'form-group' }, [
+            el('label', { text: 'Note' }),
+            el('input', { type: 'text', name: 'logNote' })
+          ]));
+          const submitBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Add Time Log' });
+          form.appendChild(submitBtn);
+          const overlay = this.showModal('Add Time Log', form, null);
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            const start = fd.get('logStart');
+            const end = fd.get('logEnd');
+            const [sh, sm] = start.split(':').map(Number);
+            const [eh, em] = end.split(':').map(Number);
+            if (eh < sh || (eh === sh && em <= sm)) {
+              alert('End time must be after start time.');
+              return;
+            }
+            const rawHours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+            const hours = Math.round(rawHours * 4) / 4;
+            const entry = {
+              userId: Auth.user.id,
+              startTime: start,
+              endTime: end,
+              date: fd.get('logDate'),
+              hours,
+              note: fd.get('logNote') || ''
+            };
+            const updatedLogs = [...(t.timeLogs || []), entry];
+            DB.update('tasks', t.id, { timeLogs: updatedLogs, updatedAt: new Date().toISOString() });
+            overlay.remove();
+            App.handleRoute();
+          });
+        });
+        logsContent.appendChild(addLogBtn);
+      }
+      expandInner.appendChild(buildAccordionPanel('Time Log Today', logsContent, false));
+
+      // ── Comments ──
+      const comments = t.comments || [];
+      const commentsContent = el('div');
+      if (comments.length === 0) {
+        commentsContent.appendChild(el('p', { class: 'empty-state', text: 'No comments yet.' }));
+      } else {
+        const commentList = el('div');
+        comments.forEach(c => {
+          const user = DB.getById('users', c.userId);
+          commentList.appendChild(el('div', { class: 'card', style: 'margin-bottom: var(--spacing-sm);' }, [
+            el('div', { class: 'kpi-label', text: (user?.name || c.userId) + ' • ' + formatDate(c.date) }),
+            el('div', { text: c.comment })
+          ]));
+        });
+        commentsContent.appendChild(commentList);
+      }
+      if (Auth.user.role === 'Admin') {
+        const commentForm = el('form', { class: 'form-stacked' });
+        commentForm.appendChild(el('div', { class: 'form-group' }, [
+          el('label', { text: 'Add Comment' }),
+          el('textarea', { name: 'commentText', rows: 2, required: true })
+        ]));
+        const commentBtn = el('button', { type: 'submit', class: 'btn btn-primary btn-sm', text: 'Post Comment' });
+        commentForm.appendChild(commentBtn);
+        commentForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const fd = new FormData(commentForm);
+          const entry = {
+            userId: Auth.user.id,
+            date: new Date().toISOString(),
+            comment: fd.get('commentText').trim()
+          };
+          if (!entry.comment) return;
+          const updatedComments = [...(t.comments || []), entry];
+          DB.update('tasks', t.id, { comments: updatedComments, updatedAt: new Date().toISOString() });
+          App.handleRoute();
+        });
+        commentsContent.appendChild(commentForm);
+      }
+      expandInner.appendChild(buildAccordionPanel('Comments', commentsContent, false));
+
+      expandTd.appendChild(expandInner);
+      expandTr.appendChild(expandTd);
+      tbody.appendChild(expandTr);
     });
     taskTable.appendChild(tbody);
     container.appendChild(taskTable);
@@ -855,98 +1094,8 @@ const Workflow = {
       section.appendChild(logTable);
     }
 
-    const logForm = el('form', { class: 'form-stacked' });
-    logForm.appendChild(el('div', { class: 'form-group' }, [
-      el('label', { text: 'Date *' }),
-      el('input', { type: 'date', name: 'logDate', value: new Date().toISOString().slice(0, 10), required: true })
-    ]));
-    logForm.appendChild(el('div', { class: 'form-group' }, [
-      el('label', { text: 'Start Time *' }),
-      el('input', { type: 'time', name: 'logStart', required: true })
-    ]));
-    logForm.appendChild(el('div', { class: 'form-group' }, [
-      el('label', { text: 'End Time *' }),
-      el('input', { type: 'time', name: 'logEnd', required: true })
-    ]));
-    logForm.appendChild(el('div', { class: 'form-group' }, [
-      el('label', { text: 'Note' }),
-      el('input', { type: 'text', name: 'logNote' })
-    ]));
-    const logBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Add Time Log' });
-    logForm.appendChild(logBtn);
-    logForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const fd = new FormData(logForm);
-      const start = fd.get('logStart');
-      const end = fd.get('logEnd');
-      const [sh, sm] = start.split(':').map(Number);
-      const [eh, em] = end.split(':').map(Number);
-      if (eh < sh || (eh === sh && em <= sm)) {
-        alert('End time must be after start time.');
-        return;
-      }
-      const rawHours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
-      const hours = Math.round(rawHours * 4) / 4;
-      const entry = {
-        userId: Auth.user.id,
-        startTime: start,
-        endTime: end,
-        date: fd.get('logDate'),
-        hours,
-        note: fd.get('logNote') || ''
-      };
-      const updatedLogs = [...(task.timeLogs || []), entry];
-      DB.update('tasks', task.id, { timeLogs: updatedLogs, updatedAt: new Date().toISOString() });
-      App.handleRoute();
-    });
-    section.appendChild(logForm);
-
-    // Task Documents
-    section.appendChild(el('h4', { text: 'Task Documents' }));
-    const docs = task.taskDocuments || [];
-    if (docs.length === 0) {
-      section.appendChild(el('p', { class: 'empty-state', text: 'No documents uploaded.' }));
-    } else {
-      const docList = el('div');
-      docs.forEach(d => {
-        const uploader = DB.getById('users', d.uploaderId);
-        docList.appendChild(el('div', { class: 'card', style: 'margin-bottom:var(--spacing-sm);' }, [
-          el('div', { class: 'kpi-label', text: (d.filename || 'Untitled') + ' • ' + formatDate(d.uploadDate) + ' • ' + (uploader?.name || '—') }),
-          el('div', { text: d.description || '' })
-        ]));
-      });
-      section.appendChild(docList);
-    }
-    const docForm = el('form', { class: 'form-stacked' });
-    docForm.appendChild(el('div', { class: 'form-group' }, [
-      el('label', { text: 'Select File' }),
-      el('input', { type: 'file', name: 'taskDocFile', required: true })
-    ]));
-    docForm.appendChild(el('div', { class: 'form-group' }, [
-      el('label', { text: 'Description' }),
-      el('input', { type: 'text', name: 'taskDocDesc' })
-    ]));
-    const docBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Upload Document' });
-    docForm.appendChild(docBtn);
-    docForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const fileInput = docForm.querySelector('input[name="taskDocFile"]');
-      const descInput = docForm.querySelector('input[name="taskDocDesc"]');
-      const file = fileInput.files[0];
-      if (!file) return;
-      const entry = {
-        filename: file.name,
-        size: file.size,
-        type: file.type,
-        uploadDate: new Date().toISOString().slice(0, 10),
-        uploaderId: Auth.user.id,
-        description: descInput.value || ''
-      };
-      const updatedDocs = [...(task.taskDocuments || []), entry];
-      DB.update('tasks', task.id, { taskDocuments: updatedDocs, updatedAt: new Date().toISOString() });
-      App.handleRoute();
-    });
-    section.appendChild(docForm);
+    // Task Activity section keeps read-only history only;
+    // add forms have been moved to modals inside each task accordion panel.
 
     // Comments
     section.appendChild(el('h4', { text: 'Comments' }));

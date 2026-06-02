@@ -465,6 +465,7 @@ const Reports = {
     const filters = this.renderFilterBar(true);
     const monthInput = el('input', { type: 'month', class: 'form-select', value: this.monthlyMonth });
     monthInput.addEventListener('change', () => { this.monthlyMonth = monthInput.value; App.handleRoute(); });
+    monthInput.addEventListener('input', () => { this.monthlyMonth = monthInput.value; App.handleRoute(); });
     filters.appendChild(el('span', { text: 'Month:', style: 'font-size:0.875rem; color:var(--color-text-muted);' }));
     filters.appendChild(monthInput);
     wrapper.appendChild(filters);

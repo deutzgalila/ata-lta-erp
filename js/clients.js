@@ -85,7 +85,7 @@ const Clients = {
     const table = el('table', { class: 'data-table' });
     const thead = el('thead');
     const headerRow = el('tr');
-    ['Taxpayer', 'TIN', 'Point of Contact', 'Trade Name', 'Address', 'Entity', 'Retainer', 'Actions'].forEach(h => {
+    ['Taxpayer', 'TIN', 'Point of Contact', 'Trade Name', 'Address', 'Related Companies', 'Contact Details', 'Entity', 'Retainer', 'Actions'].forEach(h => {
       headerRow.appendChild(el('th', { text: h }));
     });
     thead.appendChild(headerRow);
@@ -100,6 +100,18 @@ const Clients = {
       row.appendChild(el('td', { text: pocUser?.name || c.contactPerson || '—' }));
       row.appendChild(el('td', { text: c.tradeName || '—' }));
       row.appendChild(el('td', { text: c.address || '—' }));
+
+      // Related Companies
+      const rcList = (c.relatedCompanies || []).map(rc => {
+        const rcClient = DB.getById('clients', rc.clientId);
+        return (rcClient?.name || '—') + ' (' + rc.relationType + ')';
+      }).join(', ');
+      row.appendChild(el('td', { text: rcList || '—' }));
+
+      // Contact Details
+      const cdList = (c.contactDetails || []).map(cd => cd.type + ': ' + cd.value).join(', ');
+      row.appendChild(el('td', { text: cdList || '—' }));
+
       const badge = el('span', { class: 'badge badge-' + (c.entity === 'ATA' ? 'info' : 'success'), text: c.entity });
       const tdEntity = el('td');
       tdEntity.appendChild(badge);
@@ -135,13 +147,15 @@ const Clients = {
     const headerBar = el('div', { class: 'form-header-bar' });
     headerBar.appendChild(el('h2', { text: clientId ? 'Edit Client' : 'Add Client' }));
     const headerActions = el('div', { class: 'form-actions-top' });
+    const saveBtnTop = el('button', { type: 'submit', form: 'client-form', class: 'btn btn-primary', text: clientId ? 'Save Changes' : 'Save Client' });
+    headerActions.appendChild(saveBtnTop);
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: 'Cancel' });
     cancelBtn.addEventListener('click', () => this.showList());
     headerActions.appendChild(cancelBtn);
     headerBar.appendChild(headerActions);
     container.appendChild(headerBar);
 
-    const form = el('form', { class: 'form-stacked' });
+    const form = el('form', { id: 'client-form', class: 'form-stacked' });
 
     // Taxpayer name
     const nameGroup = el('div', { class: 'form-group' });
@@ -235,11 +249,6 @@ const Clients = {
     retainerLabel.appendChild(document.createTextNode(' This client is on retainer'));
     retainerGroup.appendChild(retainerLabel);
     form.appendChild(retainerGroup);
-
-    const btnGroup = el('div', { class: 'form-group form-actions' });
-    const saveBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: clientId ? 'Save Changes' : 'Save Client' });
-    btnGroup.appendChild(saveBtn);
-    form.appendChild(btnGroup);
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();

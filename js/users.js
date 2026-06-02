@@ -494,50 +494,86 @@ const Users = {
     }
 
     const pending = PendingChanges.getPendingForUser(Auth.user.id);
-    if (pending.length === 0) {
+    const rejected = PendingChanges.getRejectedForUser(Auth.user.id);
+    if (pending.length === 0 && rejected.length === 0) {
       wrapper.appendChild(el('p', { text: 'No pending submissions.', class: 'empty-state' }));
       return wrapper;
     }
 
-    const table = el('table', { class: 'data-table' });
-    const thead = el('thead');
-    const thr = el('tr');
-    ['Table', 'Date', 'Type', 'Status', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
-    thead.appendChild(thr);
-    table.appendChild(thead);
+    if (pending.length > 0) {
+      const table = el('table', { class: 'data-table' });
+      const thead = el('thead');
+      const thr = el('tr');
+      ['Table', 'Date', 'Type', 'Status', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
+      thead.appendChild(thr);
+      table.appendChild(thead);
 
-    const tbody = el('tbody');
-    pending.forEach(pc => {
-      const tr = el('tr');
-      tr.appendChild(el('td', { text: pc.table }));
-      tr.appendChild(el('td', { text: formatDate(pc.submittedAt) }));
-      tr.appendChild(el('td', { text: pc.parentRecordId ? 'Edit' : 'New' }));
-      tr.appendChild(el('td', { text: pc.status }));
+      const tbody = el('tbody');
+      pending.forEach(pc => {
+        const tr = el('tr');
+        tr.appendChild(el('td', { text: pc.table }));
+        tr.appendChild(el('td', { text: formatDate(pc.submittedAt) }));
+        tr.appendChild(el('td', { text: pc.parentRecordId ? 'Edit' : 'New' }));
+        tr.appendChild(el('td', { text: pc.status }));
 
-      const tdAct = el('td');
-      const reviewBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Review' });
-      reviewBtn.addEventListener('click', () => {
-        this.pendingDetailId = pc.id;
-        App.handleRoute();
+        const tdAct = el('td');
+        const reviewBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Review' });
+        reviewBtn.addEventListener('click', () => {
+          this.pendingDetailId = pc.id;
+          App.handleRoute();
+        });
+        tdAct.appendChild(reviewBtn);
+
+        if (pc.status === 'pending') {
+          const withdrawBtn = el('button', { class: 'btn btn-danger btn-sm', text: 'Withdraw' });
+          withdrawBtn.addEventListener('click', () => {
+            if (confirm('Withdraw this pending submission?')) {
+              PendingChanges.delete(pc.id);
+              App.handleRoute();
+            }
+          });
+          tdAct.appendChild(withdrawBtn);
+        }
+
+        tr.appendChild(tdAct);
+        tbody.appendChild(tr);
       });
-      tdAct.appendChild(reviewBtn);
+      table.appendChild(tbody);
+      wrapper.appendChild(table);
+    }
 
-      if (pc.status === 'pending') {
-        const withdrawBtn = el('button', { class: 'btn btn-danger btn-sm', text: 'Withdraw' });
-        withdrawBtn.addEventListener('click', () => {
-          if (confirm('Withdraw this pending submission?')) {
-            PendingChanges.delete(pc.id);
+    if (rejected.length > 0) {
+      wrapper.appendChild(el('h3', { text: 'Rejected Submissions', style: 'margin-top:var(--spacing-lg);' }));
+      const table = el('table', { class: 'data-table' });
+      const thead = el('thead');
+      const thr = el('tr');
+      ['Table', 'Date', 'Type', 'Rejection Reason', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
+      thead.appendChild(thr);
+      table.appendChild(thead);
+
+      const tbody = el('tbody');
+      rejected.forEach(pc => {
+        const tr = el('tr');
+        tr.appendChild(el('td', { text: pc.table }));
+        tr.appendChild(el('td', { text: formatDate(pc.submittedAt) }));
+        tr.appendChild(el('td', { text: pc.parentRecordId ? 'Edit' : 'New' }));
+        tr.appendChild(el('td', { text: pc.rejectionReason || '—' }));
+
+        const tdAct = el('td');
+        const resubmitBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Resubmit' });
+        resubmitBtn.addEventListener('click', () => {
+          if (confirm('Resubmit this rejected submission?')) {
+            PendingChanges.resubmit(pc.id);
             App.handleRoute();
           }
         });
-        tdAct.appendChild(withdrawBtn);
-      }
-
-      tr.appendChild(tdAct);
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    wrapper.appendChild(table);
+        tdAct.appendChild(resubmitBtn);
+        tr.appendChild(tdAct);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrapper.appendChild(table);
+    }
 
     return wrapper;
   },

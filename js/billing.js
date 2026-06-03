@@ -479,7 +479,7 @@ const Billing = {
     if (inv && inv.lineItems) {
       inv.lineItems.forEach(item => this.addLineItemRow(itemsList, item));
     } else {
-      this.addLineItemRow(itemsList, { type: 'PF', description: '', amount: '' });
+      this.addLineItemRow(itemsList, { type: 'Professional Fee', description: '', amount: '' });
       this.addLineItemRow(itemsList, { type: 'Government Fee', description: '', amount: '' });
     }
 
@@ -525,7 +525,7 @@ const Billing = {
     const row = el('div', { class: 'line-item-row' });
 
     const typeSel = el('select', { class: 'item-type' });
-    ['PF', 'Government Fee'].forEach(t => {
+    ['Professional Fee', 'Government Fee'].forEach(t => {
       const opt = el('option', { value: t, text: t });
       if (item?.type === t) opt.selected = true;
       typeSel.appendChild(opt);
@@ -979,7 +979,7 @@ const Billing = {
       const client = DB.getById('clients', t.clientId);
       const card = el('div', { class: 'card' });
       card.appendChild(el('h3', { text: t.name }));
-      card.appendChild(el('p', { text: 'Client: ' + (client?.name || '—') + ' | Schedule: ' + t.schedule + ' | PF: ' + formatPHP(t.pfAmount) }));
+      card.appendChild(el('p', { text: 'Client: ' + (client?.name || '—') + ' | Schedule: ' + t.schedule + ' | Professional Fee: ' + formatPHP(t.pfAmount) }));
       const actions = el('div', { class: 'form-actions-top', style: 'margin-top:12px;' });
       const genBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Generate Next Period' });
       genBtn.addEventListener('click', () => this.generateFromTemplate(t));
@@ -1013,7 +1013,7 @@ const Billing = {
     schedGroup.appendChild(schedSel);
     form.appendChild(schedGroup);
 
-    form.appendChild(el('div', { class: 'form-group' }, [el('label', { text: 'PF Amount *' }), el('input', { type: 'number', name: 'pfAmount', min: 0, step: 0.01, required: true })]));
+    form.appendChild(el('div', { class: 'form-group' }, [el('label', { text: 'Professional Fee Amount *' }), el('input', { type: 'number', name: 'pfAmount', min: 0, step: 0.01, required: true })]));
 
     const btnGroup = el('div', { class: 'form-actions' });
     const saveBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Save Template' });
@@ -1034,7 +1034,7 @@ const Billing = {
         schedule: fd.get('schedule'),
         pfAmount: parseFloat(fd.get('pfAmount')) || 0,
         lineItems: [
-          { type: 'PF', description: fd.get('name').trim(), amount: parseFloat(fd.get('pfAmount')) || 0 }
+          { type: 'Professional Fee', description: fd.get('name').trim(), amount: parseFloat(fd.get('pfAmount')) || 0 }
         ],
         createdAt: new Date().toISOString()
       };

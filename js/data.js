@@ -672,7 +672,7 @@ const seedData = {
       dueDate: today,
       status: 'Sent',
       lineItems: [
-        { description: 'Professional Fee - Annual Tax Filing', amount: 45000.00, type: 'PF' },
+        { description: 'Professional Fee - Annual Tax Filing', amount: 45000.00, type: 'Professional Fee' },
         { description: 'BIR DST', amount: 150.00, type: 'Government Fee' },
         { description: 'SEC Filing Fee', amount: 500.00, type: 'Government Fee' }
       ],
@@ -694,7 +694,7 @@ const seedData = {
       dueDate: lastWeek,
       status: 'Paid',
       lineItems: [
-        { description: 'Professional Fee - Monthly Bookkeeping (Retainer)', amount: 15000.00, type: 'PF' }
+        { description: 'Professional Fee - Monthly Bookkeeping (Retainer)', amount: 15000.00, type: 'Professional Fee' }
       ],
       subtotal: 15000.00,
       vat: 0,
@@ -716,7 +716,7 @@ const seedData = {
       dueDate: today,
       status: 'Partially Paid',
       lineItems: [
-        { description: 'Professional Fee - Audit Engagement', amount: 85000.00, type: 'PF' },
+        { description: 'Professional Fee - Audit Engagement', amount: 85000.00, type: 'Professional Fee' },
         { description: 'SEC Filing Fee', amount: 1000.00, type: 'Government Fee' },
         { description: 'PCC Fee', amount: 800.00, type: 'Government Fee' }
       ],
@@ -740,7 +740,7 @@ const seedData = {
       dueDate: today,
       status: 'Draft',
       lineItems: [
-        { description: 'Professional Fee - Quarterly Tax Filing Q1', amount: 22000.00, type: 'PF' },
+        { description: 'Professional Fee - Quarterly Tax Filing Q1', amount: 22000.00, type: 'Professional Fee' },
         { description: 'BIR eFiling Fee', amount: 100.00, type: 'Government Fee' }
       ],
       subtotal: 22100.00,

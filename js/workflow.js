@@ -1878,7 +1878,7 @@ const Workflow = {
     const table = el('table', { class: 'data-table' });
     const thead = el('thead');
     const thr = el('tr');
-    ['Template', 'Client', 'Schedule', 'PF Amount', 'Tasks', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
+    ['Template', 'Client', 'Schedule', 'Professional Fee Amount', 'Tasks', 'Actions'].forEach(h => thr.appendChild(el('th', { text: h })));
     thead.appendChild(thr);
     table.appendChild(thead);
 

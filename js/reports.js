@@ -511,7 +511,7 @@ const Reports = {
           el('th', { text: 'Template' }),
           el('th', { text: 'Client' }),
           el('th', { text: 'Schedule' }),
-          el('th', { text: 'PF Amount' }),
+          el('th', { text: 'Professional Fee Amount' }),
           el('th', { text: 'Tasks' })
         ])
       ]));
@@ -687,7 +687,7 @@ const Reports = {
       const e = inv.entity.toUpperCase();
       if (!byEntity[e]) return;
       inv.lineItems.forEach(li => {
-        if (li.type === 'PF') byEntity[e].pf += li.amount;
+        if (li.type === 'PF' || li.type === 'Professional Fee') byEntity[e].pf += li.amount;
         else if (li.type === 'GovtFee' || li.type === 'Government Fee') byEntity[e].govt += li.amount;
       });
       if (['Sent', 'Partially Paid', 'Overdue'].includes(inv.status)) {
@@ -712,7 +712,7 @@ const Reports = {
         el('thead', {}, [
           el('tr', {}, [
             el('th', { text: 'Entity' }),
-            el('th', { text: 'PF Billed' }),
+            el('th', { text: 'Professional Fee Billed' }),
             el('th', { text: "Gov't Fees" }),
             el('th', { text: 'Outstanding' })
           ])
@@ -805,7 +805,7 @@ const Reports = {
       const e = inv.entity.toUpperCase();
       if (!byEntity[e]) return;
       inv.lineItems.forEach(li => {
-        if (li.type === 'PF') byEntity[e].revenue += li.amount;
+        if (li.type === 'PF' || li.type === 'Professional Fee') byEntity[e].revenue += li.amount;
       });
     });
 

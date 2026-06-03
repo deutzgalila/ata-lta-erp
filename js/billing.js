@@ -663,15 +663,12 @@ const Billing = {
     const backBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '← Back' });
     backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
     topRight.appendChild(backBtn);
-    const printBtn = el('button', { class: 'btn btn-ghost', text: 'Print Invoice' });
-    printBtn.addEventListener('click', () => window.print());
-    topRight.appendChild(printBtn);
-    const voucherBtn = el('button', { class: 'btn btn-ghost', text: 'Print Voucher' });
-    voucherBtn.addEventListener('click', () => this.printVoucher(inv));
-    topRight.appendChild(voucherBtn);
-    const voucherNoHeaderBtn = el('button', { class: 'btn btn-ghost', text: 'Print Voucher (No Header)' });
-    voucherNoHeaderBtn.addEventListener('click', () => this.printVoucherNoHeader(inv));
-    topRight.appendChild(voucherNoHeaderBtn);
+    const genInvBtn = el('button', { class: 'btn btn-primary', text: 'Generate Invoice' });
+    genInvBtn.addEventListener('click', () => this.generateInvoice(inv));
+    topRight.appendChild(genInvBtn);
+    const genVouchBtn = el('button', { class: 'btn btn-ghost', text: 'Generate Voucher' });
+    genVouchBtn.addEventListener('click', () => this.generateVoucher(inv));
+    topRight.appendChild(genVouchBtn);
     topActions.appendChild(topRight);
     container.appendChild(topActions);
 
@@ -815,137 +812,270 @@ const Billing = {
     return container;
   },
 
-  _buildVoucherDoc(inv, opts = {}) {
+  generateInvoice(inv) {
     const client = DB.getById('clients', inv.clientId);
-    const entity = inv.entity || '';
+    const entity = inv.entity || 'ATA';
     const w = window.open('', '_blank');
     if (!w) return;
     const d = w.document;
+
     const title = d.createElement('title');
-    title.textContent = (opts.title || 'Invoice') + ' ' + inv.invoiceNumber;
+    title.textContent = 'Service Invoice ' + inv.invoiceNumber;
     d.head.appendChild(title);
 
     const style = d.createElement('style');
     style.textContent = `
-      body{font-family:sans-serif;padding:40px;max-width:700px;margin:0 auto;color:#000;}
-      .seller-header{text-align:center;margin-bottom:24px;border-bottom:2px solid #000;padding-bottom:16px;}
-      .seller-header h1{font-size:1.5rem;margin:4px 0;}
-      .seller-header p{margin:2px 0;font-size:0.875rem;}
-      .buyer-section{margin-bottom:24px;}
-      .buyer-section p{margin:4px 0;}
-      h2{font-size:1.125rem;margin-bottom:8px;}
-      .meta{color:#333;font-size:0.875rem;margin-bottom:16px;}
-      table{width:100%;border-collapse:collapse;margin:16px 0;}
-      th,td{text-align:left;padding:8px;border-bottom:1px solid #000;}
-      th{background:#f5f5f5;}
-      .num,.money{text-align:right;}
-      .totals{margin-top:16px;text-align:right;}
-      .totals .row{margin:4px 0;}
-      .totals .grand{font-weight:700;font-size:1.125rem;border-top:2px solid #000;padding-top:8px;margin-top:8px;}
-      .footer{margin-top:40px;font-size:0.75rem;color:#666;text-align:center;border-top:1px solid #ccc;padding-top:12px;}
+      @page { size: A4; margin: 20mm; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; max-width: 210mm; margin: 0 auto; padding: 16mm; }
+      .doc-header { text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; }
+      .doc-header h1 { font-size: 20pt; margin: 0 0 4px; letter-spacing: 2px; }
+      .doc-header .firm { font-size: 14pt; font-weight: 700; margin: 4px 0; }
+      .doc-header .meta { font-size: 9pt; color: #475569; margin: 2px 0; }
+      .doc-title { text-align: center; font-size: 16pt; font-weight: 700; letter-spacing: 4px; margin: 16px 0; text-transform: uppercase; }
+      .two-col { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+      .col { flex: 1; }
+      .col h3 { font-size: 10pt; text-transform: uppercase; color: #64748b; margin: 0 0 4px; letter-spacing: 0.5px; }
+      .col p { margin: 2px 0; font-size: 10pt; }
+      .details-bar { display: flex; gap: 32px; margin-bottom: 20px; font-size: 10pt; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 4px; }
+      .details-bar span { flex: 1; }
+      .details-bar strong { color: #334155; }
+      table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+      th { background: #f8fafc; border-bottom: 2px solid #1e293b; padding: 8px; text-align: left; font-weight: 600; text-transform: uppercase; font-size: 9pt; letter-spacing: 0.5px; }
+      td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+      .num { text-align: right; }
+      .totals { margin-top: 16px; border-top: 2px solid #1e293b; padding-top: 12px; }
+      .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 10pt; }
+      .totals-row.grand { font-weight: 700; font-size: 12pt; border-top: 1px solid #cbd5e1; padding-top: 8px; margin-top: 4px; }
+      .vat-breakdown { background: #f8fafc; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 9pt; }
+      .vat-breakdown p { margin: 2px 0; }
+      .signature-row { display: flex; justify-content: space-between; margin-top: 48px; gap: 40px; }
+      .signature-box { flex: 1; text-align: center; }
+      .signature-box .line { border-top: 1px solid #1e293b; margin-top: 40px; padding-top: 4px; font-size: 9pt; }
+      .disclaimer { margin-top: 32px; padding: 10px; border: 2px solid #dc2626; color: #dc2626; font-size: 9pt; font-weight: 700; text-align: center; text-transform: uppercase; }
+      .footer { margin-top: 24px; font-size: 8pt; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; }
     `;
     d.head.appendChild(style);
 
-    // Seller header
-    if (!opts.noHeader) {
-      const seller = d.createElement('div');
-      seller.className = 'seller-header';
-      const h1 = d.createElement('h1');
-      h1.textContent = entity + ' Accounting Firm';
-      seller.appendChild(h1);
-      seller.appendChild(d.createElement('p')).textContent = 'TIN: 000-000-000-0000 | Branch Code: 0001';
-      seller.appendChild(d.createElement('p')).textContent = 'Address: [Firm Address]';
-      d.body.appendChild(seller);
-    }
-
-    // Document title
-    const docTitle = d.createElement('h2');
-    docTitle.textContent = opts.noHeader ? 'Payment Voucher' : 'Sales Invoice';
-    d.body.appendChild(docTitle);
-
-    // Meta
-    const meta = d.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = 'Invoice #: ' + inv.invoiceNumber + ' | Date: ' + formatDate(inv.issueDate) + ' | Due: ' + formatDate(inv.dueDate);
-    d.body.appendChild(meta);
-
-    // Buyer
-    const buyer = d.createElement('div');
-    buyer.className = 'buyer-section';
-    const bP = d.createElement('p');
-    const bStrong = d.createElement('strong');
-    bStrong.textContent = 'Sold To: ';
-    bP.appendChild(bStrong);
-    bP.appendChild(d.createTextNode(client ? client.name : '—'));
-    buyer.appendChild(bP);
-    buyer.appendChild(d.createElement('p')).textContent = 'TIN: ' + (client?.tin || '—');
-    d.body.appendChild(buyer);
-
-    // Line items table with qty, unit cost, total
-    const table = d.createElement('table');
-    const thead = d.createElement('thead');
-    const thr = d.createElement('tr');
-    ['Description', 'Qty', 'Unit Cost', 'Total'].forEach((h, i) => {
-      const th = d.createElement('th');
-      th.textContent = h;
-      if (i > 0) th.className = 'num';
-      thr.appendChild(th);
-    });
-    thead.appendChild(thr);
-    table.appendChild(thead);
-
-    const tbody = d.createElement('tbody');
-    inv.lineItems.forEach(li => {
-      const tr = d.createElement('tr');
-      const tdDesc = d.createElement('td');
-      tdDesc.textContent = (li.type ? '[' + li.type + '] ' : '') + (li.description || '');
-      tr.appendChild(tdDesc);
-      const tdQty = d.createElement('td');
-      tdQty.className = 'num';
-      tdQty.textContent = li.qty || '1';
-      tr.appendChild(tdQty);
-      const tdUnit = d.createElement('td');
-      tdUnit.className = 'num';
-      tdUnit.textContent = formatPHP(li.unitCost || li.amount);
-      tr.appendChild(tdUnit);
-      const tdTotal = d.createElement('td');
-      tdTotal.className = 'num';
-      tdTotal.textContent = formatPHP((parseFloat(li.qty) || 1) * (parseFloat(li.unitCost) || parseFloat(li.amount) || 0));
-      tr.appendChild(tdTotal);
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    d.body.appendChild(table);
-
-    // Totals
     const subtotal = this.getSubtotal(inv);
-    const totals = d.createElement('div');
-    totals.className = 'totals';
-    const subRow = d.createElement('div');
-    subRow.className = 'row';
-    subRow.textContent = 'Subtotal: ' + formatPHP(subtotal);
-    totals.appendChild(subRow);
-    const grandRow = d.createElement('div');
-    grandRow.className = 'grand';
-    grandRow.textContent = 'Total: ' + formatPHP(inv.total);
-    totals.appendChild(grandRow);
-    d.body.appendChild(totals);
+    const vatAmount = parseFloat(inv.vat) || 0;
+    const isVat = vatAmount > 0;
 
-    // Footer
-    const footer = d.createElement('div');
-    footer.className = 'footer';
-    footer.textContent = 'This document is not valid for claim of input tax.';
-    d.body.appendChild(footer);
+    const lineItemsHtml = inv.lineItems.map(li => {
+      const qty = parseFloat(li.qty) || 1;
+      const unit = parseFloat(li.unitCost || li.amount) || 0;
+      const total = qty * unit;
+      return `<tr><td>${li.type ? '[' + li.type + '] ' : ''}${li.description || '—'}</td><td class="num">${qty}</td><td class="num">${formatPHP(unit)}</td><td class="num">${formatPHP(total)}</td></tr>`;
+    }).join('');
 
-    setTimeout(() => w.print(), 200);
+    const vatHtml = isVat
+      ? `<div class="vat-breakdown"><p><strong>VAT Breakdown</strong></p><p>VATable Sales: ${formatPHP(subtotal)}</p><p>VAT Amount (12%): ${formatPHP(vatAmount)}</p><p>Total Amount Due: ${formatPHP(inv.total)}</p></div>`
+      : `<div class="disclaimer">This document is not valid for claim of input tax.</div>`;
+
+    d.body.innerHTML = `
+      <div class="doc-header">
+        <div class="firm">${entity} Accounting Services Firm</div>
+        <div class="meta">VAT Reg TIN: 000-000-000-00000 | Branch: 0001</div>
+        <div class="meta">Registered Address: [Firm Registered Address], Metro Manila</div>
+        <div class="meta">ATP No. [Authority to Print Number] | Series: ${inv.invoiceNumber}</div>
+      </div>
+
+      <div class="doc-title">Service Invoice</div>
+
+      <div class="two-col">
+        <div class="col">
+          <h3>Sold To / Client</h3>
+          <p><strong>${client?.name || '—'}</strong></p>
+          <p>TIN: ${client?.tin || '—'}</p>
+          <p>${client?.address || '—'}</p>
+        </div>
+        <div class="col">
+          <h3>Invoice Details</h3>
+          <p><strong>Invoice No.:</strong> ${inv.invoiceNumber}</p>
+          <p><strong>Date Issued:</strong> ${formatDate(inv.issueDate)}</p>
+          <p><strong>Due Date:</strong> ${formatDate(inv.dueDate)}</p>
+          <p><strong>Terms:</strong> Due upon receipt</p>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Description of Service</th><th class="num">Qty</th><th class="num">Unit Cost</th><th class="num">Amount</th></tr>
+        </thead>
+        <tbody>
+          ${lineItemsHtml}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="totals-row"><span>Subtotal</span><span>${formatPHP(subtotal)}</span></div>
+        ${isVat ? `<div class="totals-row"><span>Value Added Tax (12%)</span><span>${formatPHP(vatAmount)}</span></div>` : ''}
+        <div class="totals-row grand"><span>Total Amount Due</span><span>${formatPHP(inv.total)}</span></div>
+      </div>
+
+      ${vatHtml}
+
+      <div class="signature-row">
+        <div class="signature-box">
+          <div class="line">Authorized Representative<br><span style="font-size:8pt;color:#64748b;">Signature over Printed Name / Date</span></div>
+        </div>
+        <div class="signature-box">
+          <div class="line">Client Acknowledgment<br><span style="font-size:8pt;color:#64748b;">Signature over Printed Name / Date</span></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        This Service Invoice is issued in compliance with Revenue Regulations No. 7-2024 (Ease of Paying Taxes Act).<br>
+        For questions, contact ${entity} Accounting Services Firm.<br>
+        Original copy retained for BIR audit trail.
+      </div>
+    `;
+
+    setTimeout(() => w.print(), 300);
   },
 
-  printVoucher(inv) {
-    this._buildVoucherDoc(inv, { title: 'Sales Invoice' });
+  generateVoucher(inv) {
+    const client = DB.getById('clients', inv.clientId);
+    const entity = inv.entity || 'ATA';
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const d = w.document;
+
+    const title = d.createElement('title');
+    title.textContent = 'Payment Voucher ' + inv.invoiceNumber;
+    d.head.appendChild(title);
+
+    const style = d.createElement('style');
+    style.textContent = `
+      @page { size: A4; margin: 20mm; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; max-width: 210mm; margin: 0 auto; padding: 16mm; }
+      .doc-header { text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; }
+      .doc-header h1 { font-size: 18pt; margin: 0 0 4px; }
+      .doc-header .meta { font-size: 9pt; color: #475569; margin: 2px 0; }
+      .doc-title { text-align: center; font-size: 16pt; font-weight: 700; letter-spacing: 4px; margin: 16px 0; text-transform: uppercase; }
+      .section { margin-bottom: 20px; }
+      .section h3 { font-size: 10pt; text-transform: uppercase; color: #64748b; margin: 0 0 8px; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+      .section p { margin: 4px 0; font-size: 10pt; }
+      .section strong { color: #334155; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+      .box { border: 1px solid #cbd5e1; border-radius: 4px; padding: 12px; }
+      table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; }
+      th { background: #f8fafc; border-bottom: 2px solid #1e293b; padding: 8px; text-align: left; font-weight: 600; text-transform: uppercase; font-size: 9pt; }
+      td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+      .num { text-align: right; }
+      .amount-words { font-style: italic; font-size: 10pt; color: #475569; margin-top: 4px; }
+      .approval-row { display: flex; justify-content: space-between; margin-top: 48px; gap: 24px; }
+      .approval-box { flex: 1; text-align: center; }
+      .approval-box .line { border-top: 1px solid #1e293b; margin-top: 40px; padding-top: 4px; font-size: 9pt; }
+      .footer { margin-top: 24px; font-size: 8pt; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    `;
+    d.head.appendChild(style);
+
+    const subtotal = this.getSubtotal(inv);
+    const paid = this.getPaidAmount(inv);
+    const balance = inv.total - paid;
+    const amountWords = this._numberToWords(inv.total) + ' PESOS ONLY';
+
+    d.body.innerHTML = `
+      <div class="doc-header">
+        <h1>${entity} Accounting Services Firm</h1>
+        <div class="meta">TIN: 000-000-000-00000 | Branch: 0001 | [Firm Registered Address]</div>
+      </div>
+
+      <div class="doc-title">Payment Voucher</div>
+
+      <div class="grid-2">
+        <div class="box">
+          <h3>Voucher Details</h3>
+          <p><strong>Voucher No.:</strong> PV-${inv.invoiceNumber}</p>
+          <p><strong>Date:</strong> ${formatDate(new Date().toISOString().slice(0, 10))}</p>
+          <p><strong>Reference Invoice:</strong> ${inv.invoiceNumber}</p>
+        </div>
+        <div class="box">
+          <h3>Payee Information</h3>
+          <p><strong>${client?.name || '—'}</strong></p>
+          <p>TIN: ${client?.tin || '—'}</p>
+          <p>${client?.address || '—'}</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Payment Details</h3>
+        <div class="grid-2">
+          <div class="box">
+            <p><strong>Amount in Figures:</strong> ${formatPHP(inv.total)}</p>
+            <p class="amount-words"><strong>Amount in Words:</strong> ${amountWords}</p>
+          </div>
+          <div class="box">
+            <p><strong>Payment Mode:</strong> Check / Bank Transfer</p>
+            <p><strong>Check No.:</strong> _________________</p>
+            <p><strong>Bank:</strong> _________________</p>
+            <p><strong>Date:</strong> _________________</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Account Distribution (PFRS Chart of Accounts)</h3>
+        <table>
+          <thead>
+            <tr><th>Account Code</th><th>Account Title</th><th>Debit</th><th>Credit</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>61010</td><td>Professional Fees Expense</td><td class="num">${formatPHP(subtotal)}</td><td class="num">—</td></tr>
+            <tr><td>22010</td><td>Expanded Withholding Tax Payable (EWT)</td><td class="num">${formatPHP(Math.round(subtotal * 0.10 * 100) / 100)}</td><td class="num">—</td></tr>
+            <tr><td>11010</td><td>Cash in Bank</td><td class="num">—</td><td class="num">${formatPHP(inv.total)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Supporting Documents</h3>
+        <p>☐ Service Invoice No. ${inv.invoiceNumber} dated ${formatDate(inv.issueDate)}</p>
+        <p>☐ Purchase Order / Contract Reference: _________________</p>
+        <p>☐ BIR Form 2307 (Certificate of Creditable Tax Withheld at Source): _________________</p>
+      </div>
+
+      <div class="approval-row">
+        <div class="approval-box">
+          <div class="line">Prepared By<br><span style="font-size:8pt;color:#64748b;">Signature / Printed Name / Date</span></div>
+        </div>
+        <div class="approval-box">
+          <div class="line">Reviewed By<br><span style="font-size:8pt;color:#64748b;">Signature / Printed Name / Date</span></div>
+        </div>
+        <div class="approval-box">
+          <div class="line">Approved By<br><span style="font-size:8pt;color:#64748b;">Signature / Printed Name / Date</span></div>
+        </div>
+        <div class="approval-box">
+          <div class="line">Received By<br><span style="font-size:8pt;color:#64748b;">Payee Signature / Printed Name / Date</span></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        This Payment Voucher is prepared in accordance with PFRS, RR No. 9-2009, and RMO No. 29-2002.<br>
+        Retain for BIR audit trail. EWT remittance via BIR Form 1601-EQ.
+      </div>
+    `;
+
+    setTimeout(() => w.print(), 300);
   },
 
-  printVoucherNoHeader(inv) {
-    this._buildVoucherDoc(inv, { title: 'Payment Voucher', noHeader: true });
+  _numberToWords(num) {
+    const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+    const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    const convert = (n) => {
+      if (n < 20) return ones[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + convert(n % 100) : '');
+      if (n < 1000000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convert(n % 1000) : '');
+      if (n < 1000000000) return convert(Math.floor(n / 1000000)) + ' Million' + (n % 1000000 ? ' ' + convert(n % 1000000) : '');
+      return '';
+    };
+    const whole = Math.floor(num);
+    const dec = Math.round((num - whole) * 100);
+    let result = convert(whole) || 'Zero';
+    if (dec > 0) result += ' and ' + convert(dec) + ' Centavos';
+    return result.toUpperCase();
   },
 
   // ============================================================

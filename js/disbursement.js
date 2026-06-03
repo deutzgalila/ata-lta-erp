@@ -79,14 +79,17 @@ const Disbursement = {
 
   statusBadge(status) {
     const map = {
-      'Submitted': 'badge-info',
+      'Draft': 'badge-warning',
+      'Submitted': 'badge-warning',
       'Under Review': 'badge-warning',
-      'Approved': 'badge-success',
+      'Pending': 'badge-warning',
+      'Approved': 'badge-info',
       'Released': 'badge-success',
       'Rejected': 'badge-danger',
       'Cancelled': 'badge-danger'
     };
-    return el('span', { class: 'badge ' + (map[status] || ''), text: status });
+    const label = (status === 'Draft' || status === 'Submitted' || status === 'Under Review') ? 'Pending' : status;
+    return el('span', { class: 'badge ' + (map[status] || ''), text: label });
   },
 
   methodIcon(method) {
@@ -136,6 +139,41 @@ const Disbursement = {
     const wrapper = el('div');
     wrapper.appendChild(actions);
 
+    // "Pending for Release" Section for Handlers
+    const pendingForRelease = DB.getWhere('disbursements', d => d.entity === entity && d.status === 'Approved' && d.paymentHandledBy === Auth.user.id);
+    if (pendingForRelease.length > 0) {
+      const pfrSection = el('div', { class: 'form-section', style: 'background: #fff7ed; border: 1px solid #ffedd5; padding: var(--spacing-md); border-radius: 12px; margin-bottom: var(--spacing-lg);' });
+      pfrSection.appendChild(el('h3', { text: '⚠️ Pending for Release', style: 'color: #c2410c; margin-top: 0;' }));
+      pfrSection.appendChild(el('p', { text: 'The following disbursements have been approved by Admin and are waiting for your final authorization and fund release.', style: 'font-size: 0.875rem; color: #9a3412; margin-bottom: var(--spacing-md);' }));
+      
+      const pfrTable = el('table', { class: 'task-table-v2' });
+      pfrTable.appendChild(el('thead', {}, [
+        el('tr', {}, [
+          el('th', { text: 'Category' }),
+          el('th', { text: 'Amount' }),
+          el('th', { text: 'Requested By' }),
+          el('th', { text: 'Actions', class: 'text-right' })
+        ])
+      ]));
+      const pfrBody = el('tbody');
+      pendingForRelease.forEach(d => {
+        const tr = el('tr');
+        tr.appendChild(el('td', { text: d.category, style: 'font-weight:600;' }));
+        tr.appendChild(el('td', { text: formatPHP(d.amount) }));
+        const req = DB.getById('users', d.requestedBy);
+        tr.appendChild(el('td', { text: req?.name || '—' }));
+        const tdAct = el('td', { class: 'text-right' });
+        const authBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Authorize Release' });
+        authBtn.addEventListener('click', () => { this.detailId = d.id; this.view = 'detail'; App.handleRoute(); });
+        tdAct.appendChild(authBtn);
+        tr.appendChild(tdAct);
+        pfrBody.appendChild(tr);
+      });
+      pfrTable.appendChild(pfrBody);
+      pfrSection.appendChild(pfrTable);
+      wrapper.appendChild(pfrSection);
+    }
+
     // Filters bar
     const filtersBar = el('div', { class: 'filters-bar' });
 
@@ -168,7 +206,7 @@ const Disbursement = {
 
     const statusFilter = el('select', { class: 'form-select', style: 'max-width:150px' });
     statusFilter.appendChild(el('option', { value: '', text: 'All Statuses' }));
-    ['Draft', 'Submitted', 'Under Review', 'Approved', 'Released', 'Rejected'].forEach(s => {
+    ['Pending', 'Approved', 'Released', 'Rejected'].forEach(s => {
       statusFilter.appendChild(el('option', { value: s, text: s }));
     });
     filtersBar.appendChild(statusFilter);
@@ -273,7 +311,8 @@ const Disbursement = {
       const tdFund = el('td');
       tdFund.appendChild(fundBadge);
       tr.appendChild(tdFund);
-      tr.appendChild(el('td', { text: d.status }));
+      const displayStatus = (['Draft', 'Submitted', 'Under Review'].includes(d.status)) ? 'Pending' : d.status;
+      tr.appendChild(el('td', { text: displayStatus }));
       const payMethod = (d.status === 'Released' && d.paymentDetails?.method) ? d.paymentDetails.method : '—';
       tr.appendChild(el('td', { text: payMethod }));
       tr.appendChild(el('td', { text: formatDate(d.submittedAt) }));
@@ -294,13 +333,11 @@ const Disbursement = {
       return;
     }
     const board = el('div', { class: 'board-v2' });
-    const statuses = ['Draft', 'Submitted', 'Under Review', 'Approved', 'Released', 'Rejected'];
+    const statuses = ['Pending', 'Approved', 'Released', 'Rejected'];
     const statusColors = {
-      'Draft': '#94a3b8',
-      'Submitted': '#3b82f6',
-      'Under Review': '#f59e0b',
-      'Approved': '#10b981',
-      'Released': '#6366f1',
+      'Pending': '#f59e0b',
+      'Approved': '#3b82f6',
+      'Released': '#10b981',
       'Rejected': '#ef4444'
     };
 
@@ -313,7 +350,13 @@ const Disbursement = {
       header.appendChild(el('div', { class: 'board-column-title', text: st }));
       col.appendChild(header);
 
-      const colItems = items.filter(d => d.status === st);
+      let colItems = [];
+      if (st === 'Pending') {
+        colItems = items.filter(d => ['Draft', 'Submitted', 'Under Review', 'Pending'].includes(d.status));
+      } else {
+        colItems = items.filter(d => d.status === st);
+      }
+      
       const cardContainer = el('div', { class: 'board-cards-scroll' });
 
       colItems.forEach(d => {
@@ -324,7 +367,8 @@ const Disbursement = {
 
         // Top: Status path and Date
         const topRow = el('div', { class: 'card-v2-top' });
-        topRow.appendChild(el('span', { class: 'card-v2-category', text: `${d.status} >` }));
+        const displayStatus = (['Draft', 'Submitted', 'Under Review'].includes(d.status)) ? 'Pending' : d.status;
+        topRow.appendChild(el('span', { class: 'card-v2-category', text: `${displayStatus} >` }));
         if (d.fromTemplate) topRow.appendChild(this.recurringBadge(d));
         topRow.appendChild(el('span', { class: 'card-v2-date', text: formatDate(d.submittedAt) }));
         card.appendChild(topRow);
@@ -507,7 +551,7 @@ const Disbursement = {
       entity: entity,
       employeeId: Auth.user.id,
       requestedBy: Auth.user.id,
-      status: 'Submitted',
+      status: 'Pending',
       submittedAt: new Date().toISOString(),
       receiptFilename: receiptFile ? receiptFile.name : (isNew ? null : (DB.getById('disbursements', this.detailId)?.receiptFilename || null))
     };
@@ -648,19 +692,46 @@ const Disbursement = {
 
     // Approval Actions
     const isAdmin = Auth.user.role === 'Admin';
-    if ((d.status === 'Submitted' || d.status === 'Under Review' || d.status === 'Approved') && isAdmin) {
+    const isPending = ['Draft', 'Submitted', 'Under Review', 'Pending'].includes(d.status);
+
+    if (isPending && isAdmin) {
       const isRequester = Auth.isSelfApprover(this.getEmployeeId(d));
       if (isRequester) {
         container.appendChild(el('p', { class: 'field-error', text: 'You cannot approve your own expense. Wait for another Admin.' }));
       } else {
         const actions = el('div', { class: 'form-actions', style: 'margin-top: var(--spacing-xl); border-top: 1px solid #e2e8f0; padding-top: var(--spacing-lg);' });
-        const releaseBtn = el('button', { class: 'btn btn-success', text: 'Approve & Release' });
-        releaseBtn.addEventListener('click', () => { this.showReleaseDialog(d.id); });
-        actions.appendChild(releaseBtn);
+        
+        const handlerGroup = el('div', { class: 'form-group', style: 'max-width:300px; margin-bottom: var(--spacing-md);' });
+        handlerGroup.appendChild(el('label', { text: 'Assign Handler *' }));
+        const handlerSel = el('select', { class: 'form-select', name: 'assignedHandler' });
+        handlerSel.appendChild(el('option', { value: '', text: '— Select Handler —' }));
+        DB.getWhere('users', u => ['Admin', 'Manager', 'Staff'].includes(u.role)).forEach(u => {
+          handlerSel.appendChild(el('option', { value: u.id, text: u.name + ' (' + u.role + ')' }));
+        });
+        actions.appendChild(handlerGroup);
+
+        const approveBtn = el('button', { class: 'btn btn-success', text: 'Approve & Assign Handler' });
+        approveBtn.addEventListener('click', () => {
+          const handlerId = handlerSel.value;
+          if (!handlerId) {
+            Workflow.showMessage('Required', 'Please assign a handler to process this request.', 'warning');
+            return;
+          }
+          Workflow.showConfirm('Confirm Approval', `Approve this expense and assign to ${DB.getById('users', handlerId)?.name}?`, () => {
+            DB.update('disbursements', d.id, { 
+              status: 'Approved', 
+              paymentHandledBy: handlerId,
+              approvedBy: Auth.user.id,
+              approvedAt: new Date().toISOString()
+            });
+            App.handleRoute();
+          }, 'success');
+        });
+        actions.appendChild(approveBtn);
 
         const rejectBtn = el('button', { class: 'btn btn-danger', text: 'Reject', style: 'margin-left: 8px;' });
         rejectBtn.addEventListener('click', () => {
-          Workflow.showConfirm('Reject Expense', 'Enter rejection reason:', () => {
+          Workflow.showConfirm('Reject Expense', 'Are you sure you want to reject this request?', () => {
             const reason = prompt('Enter rejection reason:');
             if (reason) { this.reject(d.id, reason); App.handleRoute(); }
           }, 'danger');
@@ -668,6 +739,18 @@ const Disbursement = {
         actions.appendChild(rejectBtn);
         container.appendChild(actions);
       }
+    } else if (d.status === 'Approved') {
+        const isHandler = d.paymentHandledBy === Auth.user.id;
+        if (isHandler) {
+          const actions = el('div', { class: 'form-actions', style: 'margin-top: var(--spacing-xl); border-top: 1px solid #e2e8f0; padding-top: var(--spacing-lg);' });
+          const releaseBtn = el('button', { class: 'btn btn-primary', text: 'Authorize & Release Funds' });
+          releaseBtn.addEventListener('click', () => { this.showReleaseDialog(d.id); });
+          actions.appendChild(releaseBtn);
+          container.appendChild(actions);
+        } else {
+          const handler = DB.getById('users', d.paymentHandledBy);
+          container.appendChild(el('p', { class: 'empty-state', text: `Waiting for release authorization from ${handler?.name || 'assigned handler'}.` }));
+        }
     }
 
     return container;
@@ -677,91 +760,61 @@ const Disbursement = {
     const d = DB.getById('disbursements', id);
     if (!d) return;
 
-    // Build modal for payment details
-    const overlay = el('div', { class: 'modal-overlay' });
-    const modal = el('div', { class: 'modal' });
-    const modalHeader = el('div', { class: 'modal-header' });
-    modalHeader.appendChild(el('h3', { class: 'modal-title', text: 'Release Payment' }));
-    const closeBtn = el('button', { class: 'btn btn-ghost btn-sm', text: '×' });
-    closeBtn.addEventListener('click', () => overlay.remove());
-    modalHeader.appendChild(closeBtn);
-    modal.appendChild(modalHeader);
-
-    const modalBody = el('div', { class: 'modal-body' });
     const form = el('form', { class: 'form-stacked' });
 
     const methodGroup = el('div', { class: 'form-group' });
     methodGroup.appendChild(el('label', { text: 'Payment Method *' }));
     const methodSel = el('select', { name: 'method', required: true, class: 'form-select' });
-    ['Cash', 'Check', 'Bank Transfer', 'GCash', 'Other'].forEach(m => methodSel.appendChild(el('option', { value: m, text: m })));
+    ['Cash', 'Check', 'Bank Transfer', 'GCash', 'Maya', 'Other Digital'].forEach(m => methodSel.appendChild(el('option', { value: m, text: m })));
     methodGroup.appendChild(methodSel);
     form.appendChild(methodGroup);
 
     const refGroup = el('div', { class: 'form-group' });
-    refGroup.appendChild(el('label', { text: 'Reference Number' }));
-    refGroup.appendChild(el('input', { type: 'text', name: 'reference' }));
+    refGroup.appendChild(el('label', { text: 'Reference / Check Number *' }));
+    refGroup.appendChild(el('input', { type: 'text', name: 'reference', required: true }));
     form.appendChild(refGroup);
 
-    const bankGroup = el('div', { class: 'form-group' });
-    bankGroup.appendChild(el('label', { text: 'Bank' }));
-    bankGroup.appendChild(el('input', { type: 'text', name: 'bank' }));
-    form.appendChild(bankGroup);
-
     const dateGroup = el('div', { class: 'form-group' });
-    dateGroup.appendChild(el('label', { text: 'Payment Date *' }));
+    dateGroup.appendChild(el('label', { text: 'Date of Release *' }));
     dateGroup.appendChild(el('input', { type: 'date', name: 'date', required: true, value: new Date().toISOString().slice(0, 10) }));
     form.appendChild(dateGroup);
 
-    const handlerGroup = el('div', { class: 'form-group' });
-    handlerGroup.appendChild(el('label', { text: 'Payment Handled By *' }));
-    const handlerSel = el('select', { name: 'paymentHandledBy', required: true, class: 'form-select' });
-    handlerSel.appendChild(el('option', { value: '', text: '— Select User —' }));
-    DB.getWhere('users', u => ['Admin', 'Manager', 'Staff'].includes(u.role)).forEach(u => {
-      handlerSel.appendChild(el('option', { value: u.id, text: u.name + ' (' + u.role + ')' }));
-    });
-    handlerGroup.appendChild(handlerSel);
-    form.appendChild(handlerGroup);
+    // Document Requirement
+    const docGroup = el('div', { class: 'form-group' });
+    docGroup.appendChild(el('label', { text: 'Attached Scanned Document (Required) *' }));
+    docGroup.appendChild(el('input', { type: 'file', name: 'releaseDoc', required: true }));
+    form.appendChild(docGroup);
 
-    const submitBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Confirm Release' });
+    const submitBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Confirm & Release Funds' });
     form.appendChild(submitBtn);
+
+    const overlay = Workflow.showModal('Authorize Fund Release', form);
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!validateRequiredFields(form)) return;
       const fd = new FormData(form);
+      const file = form.querySelector('input[name="releaseDoc"]').files[0];
+      
       this.release(id, {
         method: fd.get('method'),
-        reference: fd.get('reference') || '',
-        bank: fd.get('bank') || '',
+        reference: fd.get('reference'),
         date: fd.get('date'),
-        processedBy: Auth.user.id
-      }, fd.get('paymentHandledBy'));
+        processedBy: Auth.user.id,
+        filename: file?.name || 'Authorized_Release.pdf'
+      });
       overlay.remove();
       App.handleRoute();
     });
-
-    modalBody.appendChild(form);
-    modal.appendChild(modalBody);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
   },
 
-  approve(id) {
-    DB.update('disbursements', id, {
-      status: 'Approved',
-      approvedBy: Auth.user.id,
-      approvedAt: new Date().toISOString()
-    });
-    return { success: true };
-  },
-
-  release(id, paymentDetails, paymentHandledBy) {
+  release(id, pd) {
     DB.update('disbursements', id, {
       status: 'Released',
       releasedBy: Auth.user.id,
       releasedAt: new Date().toISOString(),
-      paymentHandledBy: paymentHandledBy || Auth.user.id,
-      paymentDetails: paymentDetails || { method: '', reference: '', bank: '', date: '', processedBy: Auth.user.id }
+      paymentDetails: pd,
+      releaseFilename: pd.filename
     });
   },
 
@@ -1071,7 +1124,7 @@ const Disbursement = {
       fromTemplate: template.id,
       employeeId: Auth.user.id,
       requestedBy: Auth.user.id,
-      status: 'Submitted',
+      status: 'Pending',
       submittedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       receiptFilename: null,

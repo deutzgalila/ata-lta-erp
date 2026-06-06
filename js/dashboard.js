@@ -20,24 +20,22 @@ const Dashboard = {
     const h1 = el('h1', {}, ['Firm Overview']);
     container.appendChild(h1);
     
+    // 1. Linear Activity Bar (Top)
+    container.appendChild(this.renderLinearActivityBar(ata.revenue, lta.revenue, ata.outstanding + lta.outstanding));
+
     const bento = el('div', { class: 'bento-grid' });
     
-    // KPI Cards
+    // 2. Calendar Card (Main area)
+    const calendarCard = this.renderCalendarCard();
+    calendarCard.className = 'bento-item bento-full dashboard-calendar-card'; // Make full width for better month view
+    this.calendarCardRef = calendarCard;
+    bento.appendChild(calendarCard);
+
+    // 3. KPI Cards (Below Calendar)
     bento.appendChild(this.kpiCard('ATA Revenue', ata.revenue, 'ata', '+15%'));
     bento.appendChild(this.kpiCard('LTA Revenue', lta.revenue, 'lta', '+8%'));
     bento.appendChild(this.kpiCard('Total Outstanding', ata.outstanding + lta.outstanding, null, '-5%'));
     bento.appendChild(this.kpiCard('Overdue Tasks', ata.overdue + lta.overdue, null, '+2%'));
-
-    // Calendar Card (Two Thirds)
-    const calendarCard = this.renderCalendarCard();
-    this.calendarCardRef = calendarCard;
-    bento.appendChild(calendarCard);
-
-    // Activity Breakdown (Third)
-    const deviceCard = el('div', { class: 'bento-item bento-third' });
-    deviceCard.appendChild(el('h2', { class: 'card-title', text: 'Activity Breakdown' }));
-    deviceCard.appendChild(this.renderDonutChart(ata.revenue, lta.revenue, ata.outstanding + lta.outstanding));
-    bento.appendChild(deviceCard);
     
     container.appendChild(bento);
 
@@ -53,21 +51,66 @@ const Dashboard = {
     const container = el('div', { class: 'page' });
     container.appendChild(el('h1', {}, [Auth.activeEntity + ' Dashboard']));
     
+    // 1. Linear Activity Bar (Top)
+    container.appendChild(this.renderLinearActivityBar(metrics.revenue, 0, metrics.outstanding));
+
     const bento = el('div', { class: 'bento-grid' });
     
-    bento.appendChild(this.kpiCard('Active Work Requests', metrics.activeWR, Auth.activeEntity.toLowerCase(), '+3%'));
-    bento.appendChild(this.kpiCard('Revenue (Paid)', metrics.revenue, Auth.activeEntity.toLowerCase(), '+11%'));
-    bento.appendChild(this.kpiCard('Outstanding', metrics.outstanding, null, '-2%'));
-    bento.appendChild(this.kpiCard('Overdue Tasks', metrics.overdue, null, '+1%'));
-
-    // Calendar Card (Full Width for Scoped)
+    // 2. Calendar Card (Main area)
     const calendarCard = this.renderCalendarCard();
     calendarCard.className = 'bento-item bento-full dashboard-calendar-card';
     this.calendarCardRef = calendarCard;
     bento.appendChild(calendarCard);
 
+    // 3. KPI Cards (Below Calendar)
+    bento.appendChild(this.kpiCard('Active Work Requests', metrics.activeWR, Auth.activeEntity.toLowerCase(), '+3%'));
+    bento.appendChild(this.kpiCard('Revenue (Paid)', metrics.revenue, Auth.activeEntity.toLowerCase(), '+11%'));
+    bento.appendChild(this.kpiCard('Outstanding', metrics.outstanding, null, '-2%'));
+    bento.appendChild(this.kpiCard('Overdue Tasks', metrics.overdue, null, '+1%'));
+
     container.appendChild(bento);
     return container;
+  },
+
+  renderLinearActivityBar(ataRev, ltaRev, outstanding) {
+    const total = ataRev + ltaRev + outstanding || 1;
+    const p1 = Math.round((ataRev / total) * 100);
+    const p2 = Math.round((ltaRev / total) * 100);
+    const p3 = Math.round((outstanding / total) * 100);
+
+    const wrapper = el('div', { class: 'activity-bar-container' });
+    wrapper.appendChild(el('div', { class: 'activity-bar-title', text: 'Firm Activity Breakdown' }));
+    
+    const bar = el('div', { class: 'linear-activity-bar' });
+    
+    if (p1 > 0) {
+      const s = el('div', { class: 'activity-segment ata', style: `width: ${p1}%`, text: `${p1}%` });
+      bar.appendChild(s);
+    }
+    if (p2 > 0) {
+      const s = el('div', { class: 'activity-segment lta', style: `width: ${p2}%`, text: `${p2}%` });
+      bar.appendChild(s);
+    }
+    if (p3 > 0) {
+      const s = el('div', { class: 'activity-segment outstanding', style: `width: ${p3}%`, text: `${p3}%` });
+      bar.appendChild(s);
+    }
+    wrapper.appendChild(bar);
+
+    const legend = el('div', { class: 'activity-legend' });
+    legend.appendChild(this.legendItem('ATA Revenue', 'var(--color-primary)'));
+    if (ltaRev > 0) legend.appendChild(this.legendItem('LTA Revenue', 'var(--color-success)'));
+    legend.appendChild(this.legendItem('Outstanding Invoices', 'var(--color-warning)'));
+    wrapper.appendChild(legend);
+
+    return wrapper;
+  },
+
+  legendItem(label, color) {
+    const item = el('div', { class: 'legend-item' });
+    item.appendChild(el('span', { class: 'legend-dot', style: `background: ${color}` }));
+    item.appendChild(el('span', { text: label }));
+    return item;
   },
 
   getEntityMetrics(entity) {
@@ -118,47 +161,6 @@ const Dashboard = {
     return card;
   },
   
-  renderDonutChart(v1, v2, v3) {
-    const total = v1 + v2 + v3 || 1;
-    const p1 = Math.round((v1 / total) * 100) || 45;
-    const p2 = Math.round((v2 / total) * 100) || 35;
-    const p3 = Math.round((v3 / total) * 100) || 20;
-    
-    const c = 251.3;
-    const o1 = (p1 / 100) * c;
-    const o2 = (p2 / 100) * c;
-    const o3 = (p3 / 100) * c;
-    
-    const container = el('div', { class: 'chart-container', style: 'flex-direction: column; justify-content: space-between;' });
-    
-    container.innerHTML = `
-      <svg class="donut-chart" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-bg)" stroke-width="16" />
-        <circle cx="50" cy="50" r="40" class="donut-segment donut-primary" 
-          stroke-dasharray="${o1} ${c - o1}" stroke-dashoffset="0" />
-        <circle cx="50" cy="50" r="40" class="donut-segment donut-secondary" 
-          stroke-dasharray="${o2} ${c - o2}" stroke-dashoffset="-${o1 + 2}" />
-        <circle cx="50" cy="50" r="40" class="donut-segment donut-tertiary" 
-          stroke-dasharray="${o3} ${c - o3}" stroke-dashoffset="-${o1 + o2 + 4}" />
-      </svg>
-      <div class="donut-legend">
-        <div class="legend-item">
-          <div class="legend-label"><span class="legend-dot" style="background: var(--color-primary)"></span> ATA Revenue</div>
-          <div class="legend-value">${p1}%</div>
-        </div>
-        <div class="legend-item">
-          <div class="legend-label"><span class="legend-dot" style="background: #22c55e"></span> LTA Revenue</div>
-          <div class="legend-value">${p2}%</div>
-        </div>
-        <div class="legend-item">
-          <div class="legend-label"><span class="legend-dot" style="background: var(--color-lta)"></span> Outstanding</div>
-          <div class="legend-value">${p3}%</div>
-        </div>
-      </div>
-    `;
-    return container;
-  },
-
   renderComparisonTable(ata, lta) {
     const section = el('div', { class: 'entity-comparison card', style: 'margin-bottom: 0;' });
     const h2 = el('h2', { class: 'card-title' }, ['Entity Comparison']);
@@ -197,11 +199,12 @@ const Dashboard = {
   init() {
     this.selectedDay = null;
     this.expandedItemId = null;
+    this.calView = 'month';
   },
 
   renderCalendarCard(container) {
     if (!container) {
-      container = el('div', { class: 'bento-item bento-two-thirds dashboard-calendar-card' });
+      container = el('div', { class: 'bento-item bento-full dashboard-calendar-card' });
     } else {
       container.innerHTML = '';
     }
@@ -211,13 +214,15 @@ const Dashboard = {
       this.calMonth = todayDate.getMonth();
       this.calYear = todayDate.getFullYear();
     }
+    
+    if (this.calView === undefined) this.calMonthView(); // Default to month view
 
     const events = this.getCalendarEvents();
 
     // Left Calendar Main View
     const mainView = el('div', { class: 'calendar-main-view' });
 
-    // Calendar Header
+    // Calendar Header (Reference: September 2023 | Today < > | Day Week Month)
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const header = el('div', { class: 'calendar-header' });
     
@@ -239,10 +244,14 @@ const Dashboard = {
     const prevBtn = el('button', { class: 'calendar-arrow-btn', text: '‹' });
     prevBtn.onclick = (e) => {
       e.stopPropagation();
-      this.calMonth--;
-      if (this.calMonth < 0) {
-        this.calMonth = 11;
-        this.calYear--;
+      if (this.calView === 'month') {
+        this.calMonth--;
+        if (this.calMonth < 0) {
+          this.calMonth = 11;
+          this.calYear--;
+        }
+      } else if (this.calView === 'week') {
+        // Simple week nav (just -7 days if we were tracknig exact week, for now just stay in month)
       }
       this.refreshCalendarCard();
     };
@@ -250,10 +259,12 @@ const Dashboard = {
     const nextBtn = el('button', { class: 'calendar-arrow-btn', text: '›' });
     nextBtn.onclick = (e) => {
       e.stopPropagation();
-      this.calMonth++;
-      if (this.calMonth > 11) {
-        this.calMonth = 0;
-        this.calYear++;
+      if (this.calView === 'month') {
+        this.calMonth++;
+        if (this.calMonth > 11) {
+          this.calMonth = 0;
+          this.calYear++;
+        }
       }
       this.refreshCalendarCard();
     };
@@ -266,22 +277,52 @@ const Dashboard = {
     const headerRight = el('div', { class: 'calendar-header-right' });
     const viewToggle = el('div', { class: 'calendar-view-toggle' });
     ['Day', 'Week', 'Month'].forEach(v => {
-      const btn = el('button', { class: `view-btn ${v === 'Month' ? 'active' : ''}`, text: v });
+      const mode = v.toLowerCase();
+      const btn = el('button', { 
+        class: `view-btn ${this.calView === mode ? 'active' : ''}`, 
+        text: v 
+      });
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        this.calView = mode;
+        this.refreshCalendarCard();
+      };
       viewToggle.appendChild(btn);
     });
     headerRight.appendChild(viewToggle);
-
-    const createBtnWrapper = el('div', { class: 'calendar-create-wrapper' });
-    const createBtn = el('button', { class: 'calendar-create-btn', text: '+ New Create' });
-    createBtnWrapper.appendChild(createBtn);
-    headerRight.appendChild(createBtnWrapper);
     
     header.appendChild(headerRight);
     mainView.appendChild(header);
 
     // Grid
     const grid = el('div', { class: 'calendar-grid' });
+    if (this.calView === 'month') {
+      this.renderMonthGrid(grid, events);
+    } else {
+      // Placeholder for Day/Week view (showing simplified list for now)
+      grid.appendChild(el('div', { 
+        class: 'empty-state', 
+        style: 'grid-column: span 7; padding: 40px;', 
+        text: `${this.calView.charAt(0).toUpperCase() + this.calView.slice(1)} view coming soon. Plotting items in Month view as requested.` 
+      }));
+    }
 
+    mainView.appendChild(grid);
+    container.appendChild(mainView);
+
+    // Right Sidebar
+    const sidebar = el('div', { class: 'calendar-sidebar' });
+    this.renderSidebarContent(sidebar, events);
+    container.appendChild(sidebar);
+
+    return container;
+  },
+
+  calMonthView() {
+    this.calView = 'month';
+  },
+
+  renderMonthGrid(grid, events) {
     // Day Headers
     ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(d => {
       grid.appendChild(el('div', { class: 'calendar-day-name', text: d }));
@@ -319,16 +360,6 @@ const Dashboard = {
       const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
       grid.appendChild(this.renderDayCell(i, dateStr, true, events[dateStr], todayStr));
     }
-
-    mainView.appendChild(grid);
-    container.appendChild(mainView);
-
-    // Right Sidebar
-    const sidebar = el('div', { class: 'calendar-sidebar' });
-    this.renderSidebarContent(sidebar, events);
-    container.appendChild(sidebar);
-
-    return container;
   },
 
   renderDayCell(dayNum, dateStr, isOtherMonth, dayEvents, todayStr) {
@@ -350,8 +381,10 @@ const Dashboard = {
       const dbs = dayEvents.filter(e => e.type === 'db');
 
       const renderBadge = (ev) => {
+        const isCompleted = ev.type === 'wr' ? ev.data.status === 'Completed' : ['Released', 'Paid'].includes(ev.data.status);
+        
         const badge = el('div', { 
-          class: `calendar-event-badge ${ev.type}-badge`,
+          class: `calendar-event-badge ${ev.type}-badge ${isCompleted ? 'completed' : ''}`,
           title: ev.type === 'wr' ? `Work Request: ${ev.data.title}` : `Disbursement: ${ev.data.description}`
         });
         
@@ -425,13 +458,13 @@ const Dashboard = {
     };
 
     wrs.forEach(wr => {
-      if (wr.dueDate && wr.status !== 'Completed' && wr.status !== 'Cancelled') {
+      if (wr.dueDate && wr.status !== 'Cancelled') {
         addToEvents(wr.dueDate, 'wr', wr);
       }
     });
 
     disbursements.forEach(d => {
-      if (['Submitted', 'Under Review', 'Approved'].includes(d.status)) {
+      if (['Submitted', 'Under Review', 'Approved', 'Released', 'Paid'].includes(d.status)) {
         let dDate = d.dueDate || d.submittedAt;
         if (d.linkedWorkRequestId) {
           const wr = DB.getById('workRequests', d.linkedWorkRequestId);

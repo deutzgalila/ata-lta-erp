@@ -400,6 +400,24 @@ const Dashboard = {
     this.renderSidebarContent(sidebar, events);
     container.appendChild(sidebar);
 
+    // Auto-scroll to current time for week/day views
+    if (this.calView === 'week' || this.calView === 'day') {
+      setTimeout(() => {
+        if (this.calendarCardRef) {
+          const gridEl = this.calendarCardRef.querySelector('.calendar-week-grid, .calendar-day-grid');
+          if (gridEl) {
+             const nowHour = new Date().getHours();
+             // timeSlots start at 09 AM (index 1 after 'All Day').
+             // So hour 9 is index 1. Hour 15 is index 7.
+             let targetIdx = nowHour - 9 + 1; 
+             if (targetIdx < 0) targetIdx = 0;
+             // approximate row height is 71px. We want to center the row a bit, so maybe targetIdx * 71
+             gridEl.scrollTo({ top: targetIdx * 71, behavior: 'smooth' });
+          }
+        }
+      }, 50);
+    }
+
     return container;
   },
 

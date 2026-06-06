@@ -11,6 +11,9 @@ const now = new Date().toISOString();
 const today = new Date().toISOString().slice(0, 10);
 const lastWeek = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 const lastMonth = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+const inThreeDays = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+const inFiveDays = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
 
 function makeId(prefix, num) {
   return prefix + '-' + String(num).padStart(4, '0');
@@ -330,6 +333,38 @@ const seedData = {
   ],
 
   workRequests: [
+    {
+      id: makeId('wr', 99),
+      title: 'Monthly VAT Declaration - Mock',
+      description: 'Mock item due this week.',
+      clientId: makeId('c', 1),
+      entity: 'ATA',
+      status: 'Processing',
+      requestedBy: makeId('u', 1),
+      assignedTo: makeId('u', 4),
+      linkedInvoiceId: null,
+      linkedDisbursementIds: [],
+      linkedTransmittalIds: [],
+      createdAt: today,
+      updatedAt: today,
+      dueDate: inThreeDays
+    },
+    {
+      id: makeId('wr', 100),
+      title: 'Quarterly Income Tax - Mock',
+      description: 'Mock item due this week.',
+      clientId: makeId('c', 5),
+      entity: 'LTA',
+      status: 'Processing',
+      requestedBy: makeId('u', 2),
+      assignedTo: makeId('u', 5),
+      linkedInvoiceId: null,
+      linkedDisbursementIds: [],
+      linkedTransmittalIds: [],
+      createdAt: today,
+      updatedAt: today,
+      dueDate: tomorrow
+    },
     {
       id: makeId('wr', 1),
       title: 'Annual Tax Filing 2025',
@@ -876,6 +911,25 @@ const seedData = {
 
   disbursements: [
     {
+      id: makeId('d', 99),
+      category: 'Travel',
+      description: 'Client visit travel expenses (Mock)',
+      amount: 1200.00,
+      fundSource: 'Petty Cash',
+      linkedInvoiceId: null,
+      linkedWorkRequestId: makeId('wr', 99),
+      entity: 'ATA',
+      employeeId: makeId('u', 4),
+      requestedBy: makeId('u', 4),
+      status: 'Approved',
+      submittedAt: today,
+      dueDate: inFiveDays,
+      accountingApprovedBy: makeId('u', 1),
+      paymentHandledBy: makeId('u', 1),
+      paymentDetails: { method: '', reference: '', bank: '', date: '', processedBy: '' },
+      updatedAt: today
+    },
+    {
       id: makeId('d', 1),
       category: 'Government Fee',
       description: 'BIR Documentary Stamp Tax payment',
@@ -1402,7 +1456,7 @@ const seedData = {
 // ============================================================
 
 const DB = {
-  SCHEMA_VERSION: 4,
+  SCHEMA_VERSION: 5,
 
   init() {
     const stored = localStorage.getItem('erp_schema_version');

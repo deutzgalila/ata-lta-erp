@@ -81,18 +81,53 @@ const Dashboard = {
     const wrapper = el('div', { class: 'activity-bar-container' });
     wrapper.appendChild(el('div', { class: 'activity-bar-title', text: 'Firm Activity Breakdown' }));
     
-    const bar = el('div', { class: 'linear-activity-bar' });
+    // Blended colors logic
+    // color1 -> 0% to p1 - 5%, blend to color2 at p1 + 5%
+    // To make it simple, we'll use linear gradient with smooth transitions.
+    // CSS Vars: ata = var(--color-primary), lta = var(--color-success), out = var(--color-warning)
+    const ataColor = '#2563eb'; // fallback to hex for gradient to ensure it parses easily
+    const ltaColor = '#10b981';
+    const outColor = '#f59e0b';
     
+    // Calculate midpoints for blending
+    const stop1 = Math.max(0, p1 - 5);
+    const stop2 = Math.min(100, p1 + 5);
+    const stop3 = Math.max(0, p1 + p2 - 5);
+    const stop4 = Math.min(100, p1 + p2 + 5);
+
+    let gradientStr = `linear-gradient(to right, 
+      ${ataColor} 0%, 
+      ${ataColor} ${stop1}%, 
+      ${ltaColor} ${stop2}%, 
+      ${ltaColor} ${stop3}%, 
+      ${outColor} ${stop4}%, 
+      ${outColor} 100%)`;
+
+    // If a segment is 0, handle cleanly (basic fallback)
+    if (p1 === 0 && p2 === 0) gradientStr = outColor;
+    else if (p1 === 0 && p3 === 0) gradientStr = ltaColor;
+    else if (p2 === 0 && p3 === 0) gradientStr = ataColor;
+    else if (p1 === 0) {
+       gradientStr = `linear-gradient(to right, ${ltaColor} 0%, ${ltaColor} ${Math.max(0, p2-5)}%, ${outColor} ${Math.min(100, p2+5)}%, ${outColor} 100%)`;
+    } else if (p2 === 0) {
+       gradientStr = `linear-gradient(to right, ${ataColor} 0%, ${ataColor} ${Math.max(0, p1-5)}%, ${outColor} ${Math.min(100, p1+5)}%, ${outColor} 100%)`;
+    } else if (p3 === 0) {
+       gradientStr = `linear-gradient(to right, ${ataColor} 0%, ${ataColor} ${Math.max(0, p1-5)}%, ${ltaColor} ${Math.min(100, p1+5)}%, ${ltaColor} 100%)`;
+    }
+
+    const bar = el('div', { class: 'linear-activity-bar', style: `background: ${gradientStr};` });
+    
+    // Keep labels but position them relative to their sections without background
     if (p1 > 0) {
-      const s = el('div', { class: 'activity-segment ata', style: `width: ${p1}%`, text: `${p1}%` });
+      const s = el('div', { class: 'activity-segment', style: `width: ${p1}%; background: transparent;`, text: `${p1}%` });
       bar.appendChild(s);
     }
     if (p2 > 0) {
-      const s = el('div', { class: 'activity-segment lta', style: `width: ${p2}%`, text: `${p2}%` });
+      const s = el('div', { class: 'activity-segment', style: `width: ${p2}%; background: transparent;`, text: `${p2}%` });
       bar.appendChild(s);
     }
     if (p3 > 0) {
-      const s = el('div', { class: 'activity-segment outstanding', style: `width: ${p3}%`, text: `${p3}%` });
+      const s = el('div', { class: 'activity-segment', style: `width: ${p3}%; background: transparent;`, text: `${p3}%` });
       bar.appendChild(s);
     }
     wrapper.appendChild(bar);
@@ -199,7 +234,7 @@ const Dashboard = {
   init() {
     this.selectedDay = null;
     this.expandedItemId = null;
-    this.calView = 'month';
+    this.calView = 'week';
   },
 
   renderCalendarCard(container) {

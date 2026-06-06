@@ -260,6 +260,72 @@ const seedData = {
       relatedCompanies: [],
       contactDetails: [],
       createdAt: now
+    },
+    {
+      id: makeId('c', 9),
+      name: 'Pioneer Logistics Inc.',
+      tin: '901-123-456-0009',
+      contactPerson: 'David Tan',
+      phone: '0925-123-4567',
+      email: 'david.tan@pioneerlog.ph',
+      address: '77 Pioneer St, Mandaluyong, Metro Manila',
+      entity: 'ATA',
+      retainer: true,
+      tradeName: 'Pioneer Log',
+      contactUserId: '',
+      relatedCompanies: [],
+      contactDetails: [],
+      createdAt: now
+    },
+    {
+      id: makeId('c', 10),
+      name: 'Taguig Tech Solutions',
+      tin: '012-234-567-0010',
+      contactPerson: 'Grace Lee',
+      phone: '0926-234-5678',
+      email: 'grace.lee@taguigtech.ph',
+      address: '88 BGC High Street, Taguig, Metro Manila',
+      entity: 'LTA',
+      retainer: false,
+      tradeName: 'Taguig Tech',
+      contactUserId: '',
+      relatedCompanies: [],
+      contactDetails: [],
+      createdAt: now
+    },
+    {
+      id: makeId('c', 11),
+      name: 'Apex Global Solutions (Archived)',
+      tin: '901-234-567-0011',
+      contactPerson: 'Robert Tan',
+      phone: '0925-901-2345',
+      email: 'robert.tan@apexglobal.ph',
+      address: '12 Pioneer St, Mandaluyong City',
+      entity: 'ATA',
+      retainer: true,
+      tradeName: 'Apex Global',
+      contactUserId: makeId('u', 4),
+      relatedCompanies: [],
+      contactDetails: [{ type: 'email', value: 'info@apexglobal.ph', label: 'Work' }],
+      status: 'Archived',
+      createdAt: lastMonth
+    },
+    {
+      id: makeId('c', 12),
+      name: 'Summit Summit Summit (Archived)',
+      tin: '012-345-678-0012',
+      contactPerson: 'Lisa Go',
+      phone: '0926-012-3456',
+      email: 'lisa.go@summit.ph',
+      address: '88 Shaw Blvd, Pasig City',
+      entity: 'LTA',
+      retainer: false,
+      tradeName: 'Summit Group',
+      contactUserId: makeId('u', 5),
+      relatedCompanies: [],
+      contactDetails: [{ type: 'mobile', value: '09260123456', label: 'Mobile' }],
+      status: 'Archived',
+      createdAt: lastMonth
     }
   ],
 
@@ -383,6 +449,36 @@ const seedData = {
       linkedTransmittalIds: [],
       createdAt: today,
       updatedAt: today
+    },
+    {
+      id: makeId('wr', 9),
+      title: 'Apex Setup Phase 1',
+      description: 'Initial tax mapping and consulting setup.',
+      clientId: makeId('c', 11),
+      entity: 'ATA',
+      status: 'Cancelled',
+      requestedBy: makeId('u', 2),
+      assignedTo: makeId('u', 4),
+      linkedInvoiceId: null,
+      linkedDisbursementIds: [],
+      linkedTransmittalIds: [],
+      createdAt: lastMonth,
+      updatedAt: now
+    },
+    {
+      id: makeId('wr', 10),
+      title: 'Summit Financial Audit',
+      description: 'Staged financial audit of local accounts.',
+      clientId: makeId('c', 12),
+      entity: 'LTA',
+      status: 'Cancelled',
+      requestedBy: makeId('u', 3),
+      assignedTo: makeId('u', 5),
+      linkedInvoiceId: null,
+      linkedDisbursementIds: [],
+      linkedTransmittalIds: [],
+      createdAt: lastMonth,
+      updatedAt: now
     }
   ],
 
@@ -1132,6 +1228,48 @@ const seedData = {
       scannedBy: '',
       envelopeId: '',
       storedLocation: ''
+    },
+    {
+      id: makeId('doc', 13),
+      fileName: 'Apex-Tax-Plan-2025.pdf',
+      workRequestId: makeId('wr', 9),
+      document_type: 'original_scan',
+      category: 'Requirement Docs',
+      uploader: makeId('u', 4),
+      uploadDate: lastMonth,
+      description: 'Archived draft tax planning paper.',
+      handover_log: [],
+      entity: 'ATA',
+      dataUrl: '',
+      versions: [],
+      comments: [],
+      documentLifecycle: 'collected',
+      scannedBy: '',
+      envelopeId: '',
+      storedLocation: '',
+      status: 'Archived',
+      archived: true
+    },
+    {
+      id: makeId('doc', 14),
+      fileName: 'Summit-Trial-Balance.xlsx',
+      workRequestId: makeId('wr', 10),
+      document_type: 'original_scan',
+      category: 'Requirement Docs',
+      uploader: makeId('u', 5),
+      uploadDate: lastMonth,
+      description: 'Archived preliminary trial balance.',
+      handover_log: [],
+      entity: 'LTA',
+      dataUrl: '',
+      versions: [],
+      comments: [],
+      documentLifecycle: 'collected',
+      scannedBy: '',
+      envelopeId: '',
+      storedLocation: '',
+      status: 'Archived',
+      archived: true
     }
   ],
 
@@ -1264,7 +1402,7 @@ const seedData = {
 // ============================================================
 
 const DB = {
-  SCHEMA_VERSION: 3,
+  SCHEMA_VERSION: 4,
 
   init() {
     const stored = localStorage.getItem('erp_schema_version');

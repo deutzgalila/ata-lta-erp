@@ -436,10 +436,41 @@ const Dashboard = {
         if (slotEvents.length > 0) {
             slotEvents.forEach(ev => {
                 const isCompleted = ev.type === 'wr' ? ev.data.status === 'Completed' : ['Released', 'Paid'].includes(ev.data.status);
-                const colors = ['bg-green-500', 'bg-cyan-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500', 'bg-yellow-500'];
-                let hash = 0;
-                for(let k=0; k<ev.data.id.length; k++) hash += ev.data.id.charCodeAt(k);
-                const colorClass = colors[hash % colors.length];
+                
+                let colorClass = 'bg-cyan-500';
+                let avatarName = 'U';
+                
+                if (ev.type === 'wr') {
+                    const wrTasks = DB.getWhere('tasks', t => t.workRequestId === ev.data.id);
+                    const total = wrTasks.length;
+                    if (total === 0) {
+                       colorClass = 'bg-purple-500';
+                    } else {
+                       const comp = wrTasks.filter(t => t.status === 'Completed').length;
+                       const pct = comp / total;
+                       if (pct === 1) colorClass = 'bg-green-500';
+                       else if (pct >= 0.5) colorClass = 'bg-blue-500';
+                       else if (pct > 0) colorClass = 'bg-yellow-500';
+                       else colorClass = 'bg-orange-500';
+                    }
+                    if (ev.data.status === 'Cancelled') colorClass = 'bg-orange-500';
+                    
+                    if (ev.data.assignedTo) {
+                        const u = DB.getById('users', ev.data.assignedTo);
+                        if (u) avatarName = u.name;
+                    }
+                } else {
+                    const s = ev.data.status;
+                    if (s === 'Paid' || s === 'Released') colorClass = 'bg-green-500';
+                    else if (s === 'Approved') colorClass = 'bg-blue-500';
+                    else if (s === 'Under Review') colorClass = 'bg-yellow-500';
+                    else colorClass = 'bg-purple-500';
+                    
+                    if (ev.data.requestedBy) {
+                        const u = DB.getById('users', ev.data.requestedBy);
+                        if (u) avatarName = u.name;
+                    }
+                }
 
                 const badge = el('div', { 
                   class: `week-event-pill ${colorClass} ${isCompleted ? 'completed' : ''}`,
@@ -447,11 +478,9 @@ const Dashboard = {
                 });
                 
                 const avatarWrap = el('div', { class: 'week-event-avatars' });
-                const numAvatars = (hash % 3) + 1;
-                for (let a=0; a<numAvatars; a++) {
-                    const img = el('img', { class: 'week-event-avatar', src: `https://ui-avatars.com/api/?name=${encodeURIComponent(ev.data.requestedBy || 'U')}&background=random` });
-                    avatarWrap.appendChild(img);
-                }
+                // We'll just show the single assignee/requester avatar for simplicity, or we could generate random based on hash if needed, but actual assignee is better.
+                const img = el('img', { class: 'week-event-avatar', src: `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarName)}&background=random` });
+                avatarWrap.appendChild(img);
                 badge.appendChild(avatarWrap);
                 
                 const titleText = ev.type === 'wr' ? ev.data.title : ev.data.description;
@@ -524,10 +553,41 @@ const Dashboard = {
       if (slotEvents.length > 0) {
           slotEvents.forEach(ev => {
               const isCompleted = ev.type === 'wr' ? ev.data.status === 'Completed' : ['Released', 'Paid'].includes(ev.data.status);
-              const colors = ['bg-green-500', 'bg-cyan-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500', 'bg-yellow-500'];
-              let hash = 0;
-              for(let k=0; k<ev.data.id.length; k++) hash += ev.data.id.charCodeAt(k);
-              const colorClass = colors[hash % colors.length];
+              
+              let colorClass = 'bg-cyan-500';
+              let avatarName = 'U';
+              
+              if (ev.type === 'wr') {
+                  const wrTasks = DB.getWhere('tasks', t => t.workRequestId === ev.data.id);
+                  const total = wrTasks.length;
+                  if (total === 0) {
+                     colorClass = 'bg-purple-500';
+                  } else {
+                     const comp = wrTasks.filter(t => t.status === 'Completed').length;
+                     const pct = comp / total;
+                     if (pct === 1) colorClass = 'bg-green-500';
+                     else if (pct >= 0.5) colorClass = 'bg-blue-500';
+                     else if (pct > 0) colorClass = 'bg-yellow-500';
+                     else colorClass = 'bg-orange-500';
+                  }
+                  if (ev.data.status === 'Cancelled') colorClass = 'bg-orange-500';
+                  
+                  if (ev.data.assignedTo) {
+                      const u = DB.getById('users', ev.data.assignedTo);
+                      if (u) avatarName = u.name;
+                  }
+              } else {
+                  const s = ev.data.status;
+                  if (s === 'Paid' || s === 'Released') colorClass = 'bg-green-500';
+                  else if (s === 'Approved') colorClass = 'bg-blue-500';
+                  else if (s === 'Under Review') colorClass = 'bg-yellow-500';
+                  else colorClass = 'bg-purple-500';
+                  
+                  if (ev.data.requestedBy) {
+                      const u = DB.getById('users', ev.data.requestedBy);
+                      if (u) avatarName = u.name;
+                  }
+              }
 
               const badge = el('div', { 
                 class: `week-event-pill ${colorClass} ${isCompleted ? 'completed' : ''}`,
@@ -535,11 +595,8 @@ const Dashboard = {
               });
               
               const avatarWrap = el('div', { class: 'week-event-avatars' });
-              const numAvatars = (hash % 3) + 1;
-              for (let a=0; a<numAvatars; a++) {
-                  const img = el('img', { class: 'week-event-avatar', src: `https://ui-avatars.com/api/?name=${encodeURIComponent(ev.data.requestedBy || 'U')}&background=random` });
-                  avatarWrap.appendChild(img);
-              }
+              const img = el('img', { class: 'week-event-avatar', src: `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarName)}&background=random` });
+              avatarWrap.appendChild(img);
               badge.appendChild(avatarWrap);
               
               const titleText = ev.type === 'wr' ? ev.data.title : ev.data.description;
@@ -620,18 +677,47 @@ const Dashboard = {
       const renderBadge = (ev) => {
         const isCompleted = ev.type === 'wr' ? ev.data.status === 'Completed' : ['Released', 'Paid'].includes(ev.data.status);
         
+        let colorClass = 'bg-cyan-500';
+        
+        if (ev.type === 'wr') {
+            const wrTasks = DB.getWhere('tasks', t => t.workRequestId === ev.data.id);
+            const total = wrTasks.length;
+            if (total === 0) {
+               colorClass = 'bg-purple-500';
+            } else {
+               const comp = wrTasks.filter(t => t.status === 'Completed').length;
+               const pct = comp / total;
+               if (pct === 1) colorClass = 'bg-green-500';
+               else if (pct >= 0.5) colorClass = 'bg-blue-500';
+               else if (pct > 0) colorClass = 'bg-yellow-500';
+               else colorClass = 'bg-orange-500';
+            }
+            if (ev.data.status === 'Cancelled') colorClass = 'bg-orange-500';
+        } else {
+            const s = ev.data.status;
+            if (s === 'Paid' || s === 'Released') colorClass = 'bg-green-500';
+            else if (s === 'Approved') colorClass = 'bg-blue-500';
+            else if (s === 'Under Review') colorClass = 'bg-yellow-500';
+            else colorClass = 'bg-purple-500';
+        }
+
         const badge = el('div', { 
           class: `calendar-event-badge ${ev.type}-badge ${isCompleted ? 'completed' : ''}`,
-          title: ev.type === 'wr' ? `Work Request: ${ev.data.title}` : `Disbursement: ${ev.data.description}`
+          title: ev.type === 'wr' ? `Work Request: ${ev.data.title}` : `Disbursement: ${ev.data.description}`,
+          style: `border-left-color: transparent; background: transparent; padding:0; box-shadow:none;`
         });
         
+        const pill = el('div', { class: `week-event-pill ${colorClass}`, style: 'margin-bottom:0; width:100%;' });
+
         // Status dot inside badge
         const status = (ev.data.status || 'Draft').toLowerCase();
-        const dot = el('span', { class: `status-dot status-${status.replace(/\s+/g, '-')}` });
-        badge.appendChild(dot);
+        const dot = el('span', { class: `status-dot status-${status.replace(/\s+/g, '-')}`, style: 'background:#fff; margin-right:4px;' });
+        pill.appendChild(dot);
         
         const titleText = ev.type === 'wr' ? ev.data.title : ev.data.description;
-        badge.appendChild(el('span', { class: 'badge-text', text: titleText }));
+        pill.appendChild(el('span', { class: 'week-event-title', style: 'color:#fff;', text: titleText }));
+        
+        badge.appendChild(pill);
         
         badge.onclick = (e) => {
           e.stopPropagation();
@@ -827,7 +913,21 @@ const Dashboard = {
         details.appendChild(this.renderDetailRow('Client', client ? client.name : '—'));
         details.appendChild(this.renderDetailRow('Status', item.status));
         details.appendChild(this.renderDetailRow('Assigned', assigned ? assigned.name : '—'));
-        if (item.description) details.appendChild(el('div', { class: 'detail-desc', text: item.description }));
+        
+        // Show remaining incomplete tasks for logged in staff
+        const myTasks = DB.getWhere('tasks', t => t.workRequestId === item.id && t.assigneeId === Auth.user.id && t.status !== 'Completed');
+        if (myTasks.length > 0) {
+          const taskWrap = el('div', { class: 'detail-desc', style: 'border-left-color: var(--color-warning);' });
+          taskWrap.appendChild(el('strong', { text: `My Incomplete Tasks (${myTasks.length}):` }));
+          const ul = el('ul', { style: 'margin: 4px 0 0 16px; padding: 0;' });
+          myTasks.forEach(t => {
+            ul.appendChild(el('li', { text: t.title }));
+          });
+          taskWrap.appendChild(ul);
+          details.appendChild(taskWrap);
+        } else if (item.description) {
+          details.appendChild(el('div', { class: 'detail-desc', text: item.description }));
+        }
       } else {
         const emp = DB.getById('users', item.requestedBy || item.employeeId);
         details.appendChild(this.renderDetailRow('Entity', item.entity.toUpperCase()));
@@ -838,12 +938,14 @@ const Dashboard = {
         details.appendChild(this.renderDetailRow('Requested By', emp ? emp.name : '—'));
       }
 
-      const viewBtn = el('button', { class: 'btn btn-primary btn-xs btn-block', style: 'margin-top:12px;', text: 'View Record' });
+      const btnText = type === 'wr' ? 'View Tasks' : 'View Disbursement';
+      const viewBtn = el('button', { class: 'btn btn-primary btn-xs btn-block', style: 'margin-top:12px;', text: btnText });
       viewBtn.onclick = (e) => {
         e.stopPropagation();
         if (type === 'wr') {
           Workflow.view = 'detail';
           Workflow.detailWrId = item.id;
+          // Note: The detail view in workflow natively shows the tasks list.
           location.hash = '#workflow';
         } else {
           Disbursement.view = 'detail';

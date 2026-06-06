@@ -334,6 +334,22 @@ const seedData = {
 
   workRequests: [
     {
+      id: makeId('wr', 101),
+      title: 'Urgent Processing - All Staff (Mock)',
+      description: 'Mock item due today to demonstrate daily task views.',
+      clientId: makeId('c', 1),
+      entity: 'ATA',
+      status: 'Processing',
+      requestedBy: makeId('u', 1),
+      assignedTo: makeId('u', 4),
+      linkedInvoiceId: null,
+      linkedDisbursementIds: [],
+      linkedTransmittalIds: [],
+      createdAt: today,
+      updatedAt: today,
+      dueDate: today
+    },
+    {
       id: makeId('wr', 99),
       title: 'Monthly VAT Declaration - Mock',
       description: 'Mock item due this week.',
@@ -518,6 +534,48 @@ const seedData = {
   ],
 
   tasks: [
+    {
+      id: makeId('t', 991),
+      workRequestId: makeId('wr', 101),
+      title: 'Review initial documentation',
+      description: 'Check for completeness.',
+      status: 'Pending',
+      assigneeId: makeId('u', 4),
+      predecessors: [],
+      dueDate: today,
+      timeLogs: [],
+      taskDocuments: [],
+      createdAt: today,
+      updatedAt: today
+    },
+    {
+      id: makeId('t', 992),
+      workRequestId: makeId('wr', 101),
+      title: 'Process compliance',
+      description: 'Ensure compliance with LTA/ATA standards.',
+      status: 'In Progress',
+      assigneeId: makeId('u', 5),
+      predecessors: [],
+      dueDate: today,
+      timeLogs: [],
+      taskDocuments: [],
+      createdAt: today,
+      updatedAt: today
+    },
+    {
+      id: makeId('t', 993),
+      workRequestId: makeId('wr', 99),
+      title: 'Draft VAT Return',
+      description: 'Drafting the VAT return.',
+      status: 'Pending',
+      assigneeId: makeId('u', 4),
+      predecessors: [],
+      dueDate: inThreeDays,
+      timeLogs: [],
+      taskDocuments: [],
+      createdAt: today,
+      updatedAt: today
+    },
     // Work Request 1 - Annual Tax Filing 2025 (ATA)
     {
       id: makeId('t', 1),
@@ -1456,7 +1514,7 @@ const seedData = {
 // ============================================================
 
 const DB = {
-  SCHEMA_VERSION: 5,
+  SCHEMA_VERSION: 6,
 
   init() {
     const stored = localStorage.getItem('erp_schema_version');

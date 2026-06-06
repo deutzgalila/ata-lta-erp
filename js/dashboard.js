@@ -405,8 +405,10 @@ const Dashboard = {
           const nowMin = new Date().getMinutes();
           const timeBubble = el('div', { class: 'week-vertical-time-bubble', text: `${String(nowHour).padStart(2, '0')}:${String(nowMin).padStart(2, '0')}` });
           dayHeader.appendChild(timeBubble);
+          const lineWrap = el('div', { class: 'week-vertical-time-line-wrap' });
           const line = el('div', { class: 'week-vertical-time-line' });
-          dayHeader.appendChild(line);
+          lineWrap.appendChild(line);
+          dayHeader.appendChild(lineWrap);
       }
       grid.appendChild(dayHeader);
     }
@@ -527,8 +529,10 @@ const Dashboard = {
         const nowMin = new Date().getMinutes();
         const timeBubble = el('div', { class: 'week-vertical-time-bubble', text: `${String(nowHour).padStart(2, '0')}:${String(nowMin).padStart(2, '0')}` });
         dayHeader.appendChild(timeBubble);
+        const lineWrap = el('div', { class: 'week-vertical-time-line-wrap' });
         const line = el('div', { class: 'week-vertical-time-line' });
-        dayHeader.appendChild(line);
+        lineWrap.appendChild(line);
+        dayHeader.appendChild(lineWrap);
     }
     grid.appendChild(dayHeader);
 

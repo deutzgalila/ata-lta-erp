@@ -32,6 +32,10 @@ const App = {
       if (isAdmin && (d.status === 'Submitted' || d.status === 'Under Review')) {
         count++;
       }
+      // Handlers see count of disbursements awaiting their final release
+      if (d.status === 'Approved' && d.paymentHandledBy === Auth.user.id) {
+        count++;
+      }
     });
 
     const navLink = document.querySelector('nav a[href="#disbursement"]');

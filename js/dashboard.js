@@ -4,6 +4,18 @@
  */
 
 const Dashboard = {
+  // Local-time date string formatter (never UTC drift)
+  fmtDate(d) {
+    if (!d) return '';
+    if (typeof d === 'string') d = new Date(d + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
+  todayStr() {
+    return this.fmtDate(new Date());
+  },
+
   render() {
     if (Auth.activeEntity === 'ALL') {
       return this.renderConsolidated();
@@ -168,7 +180,7 @@ const Dashboard = {
     if (myTasks.length === 0) return null;
 
     // Check if user logged time today for these incomplete tasks
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = this.todayStr();
     const tasksNeedingLogs = myTasks.filter(t => !t.timeLogs || !t.timeLogs.some(log => log.date === todayStr));
 
     // If all incomplete tasks have a log today, no prompt needed.
@@ -444,9 +456,9 @@ const Dashboard = {
           this.calYear--;
         }
       } else {
-        const d = new Date(this.selectedDay);
+        const d = this.selectedDay ? new Date(this.selectedDay) : new Date();
         d.setDate(d.getDate() - 1);
-        this.selectedDay = d.toISOString().slice(0, 10);
+        this.selectedDay = this.fmtDate(d);
         this.calMonth = d.getMonth();
         this.calYear = d.getFullYear();
       }
@@ -463,9 +475,9 @@ const Dashboard = {
           this.calYear++;
         }
       } else {
-        const d = new Date(this.selectedDay);
+        const d = this.selectedDay ? new Date(this.selectedDay) : new Date();
         d.setDate(d.getDate() + 1);
-        this.selectedDay = d.toISOString().slice(0, 10);
+        this.selectedDay = this.fmtDate(d);
         this.calMonth = d.getMonth();
         this.calYear = d.getFullYear();
       }
@@ -558,7 +570,7 @@ const Dashboard = {
       weekDates.push(d);
 
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const isToday = dateStr === new Date().toISOString().slice(0, 10);
+      const isToday = dateStr === this.todayStr();
 
       const dayHeader = el('div', { class: `week-day-header ${isToday ? 'today' : ''}` });
       dayHeader.innerHTML = `<span class="day-name">${days[d.getDay()]}</span><span class="day-num">${String(d.getDate()).padStart(2, '0')}</span>`;
@@ -598,7 +610,7 @@ const Dashboard = {
         const d = weekDates[i];
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-        const isToday = dateStr === new Date().toISOString().slice(0, 10);
+        const isToday = dateStr === this.todayStr();
         const cellClass = `week-cell ${isCurrentHour && isToday ? 'current-hour-cell' : ''}`;
         const cell = el('div', { class: cellClass, 'data-date': dateStr });
 
@@ -692,7 +704,7 @@ const Dashboard = {
   renderDayGrid(grid, events) {
     const d = new Date(this.selectedDay);
     const dateStr = this.selectedDay;
-    const isToday = dateStr === new Date().toISOString().slice(0, 10);
+    const isToday = dateStr === this.todayStr();
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     // Header Row
@@ -732,7 +744,7 @@ const Dashboard = {
       grid.appendChild(el('div', { class: rowClass, text: time }));
 
       const cellClass = `week-cell ${isCurrentHour && isToday ? 'current-hour-cell' : ''}`;
-      const cell = el('div', { class: cellClass, 'data-date': dateStr });
+      const cell = el('div', { class: cellClass, 'data-date': dateStr, 'data-slot': String(slotIndex) });
 
       cell.onclick = (e) => {
         e.stopPropagation();
@@ -744,39 +756,92 @@ const Dashboard = {
       grid.appendChild(cell);
     });
 
-    // --- Event Overlay Layer ---
-    const overlayContainer = el('div', { class: 'week-events-overlay' });
-    grid.appendChild(overlayContainer);
-
+    // --- Day View: render events inside cells (no floating overlays) ---
     const dayEvents = events[dateStr] || [];
-    const getEventSlot = (ev, totalDayEvents) => {
-      let hash = 0;
-      for(let k=0; k<ev.data.id.length; k++) hash += ev.data.id.charCodeAt(k);
-      let evSlot = (hash % 9) + 1;
-      if (totalDayEvents > 5) evSlot = 0;
-      else if (totalDayEvents <= 5 && evSlot > 9) evSlot = 0;
-      return evSlot;
-    };
 
-    const slotMap = {};
-    dayEvents.forEach(ev => {
-      const evSlot = getEventSlot(ev, dayEvents.length);
-      if (!slotMap[evSlot]) slotMap[evSlot] = [];
-      slotMap[evSlot].push({ ev, dayIdx: 0, spanDays: 1, dateStr });
-    });
+    timeSlots.forEach((time, slotIndex) => {
+      const cell = grid.querySelector(`.week-cell[data-date="${dateStr}"][data-slot="${slotIndex}"]`);
+      if (!cell) return;
 
-    const PILL_HEIGHT = 26;
-    const PILL_GAP = 4;
-
-    Object.keys(slotMap).forEach(slotIdx => {
-      const eventsInSlot = slotMap[slotIdx];
-      if (eventsInSlot.length === 0) return;
-
-      eventsInSlot.forEach(({ ev, dayIdx, spanDays, dateStr }, index) => {
-        const topOffset = index * (PILL_HEIGHT + PILL_GAP);
-        const overlay = this.createWeekEventOverlay(ev, dayIdx, spanDays, parseInt(slotIdx), topOffset, dateStr);
-        overlayContainer.appendChild(overlay);
+      const slotEvents = dayEvents.filter(ev => {
+         let hash = 0;
+         for(let k=0; k<ev.data.id.length; k++) hash += ev.data.id.charCodeAt(k);
+         let evSlot = (hash % 9) + 1;
+         if (slotIndex === 0 && dayEvents.length > 5) return true;
+         if (slotIndex === 0 && dayEvents.length <= 5 && evSlot > 9) return true;
+         return evSlot === slotIndex;
       });
+
+      if (slotEvents.length > 0) {
+          slotEvents.forEach(ev => {
+              const isCompleted = ev.type === 'wr' ? ev.data.status === 'Completed' : ['Released', 'Paid'].includes(ev.data.status);
+
+              let colorClass = 'bg-cyan-500';
+              let avatarName = 'U';
+
+              if (isCompleted) {
+                  colorClass = 'bg-green-500';
+              }
+
+              if (ev.type === 'wr') {
+                  if (!isCompleted) {
+                      const wrTasks = DB.getWhere('tasks', t => t.workRequestId === ev.data.id);
+                      const total = wrTasks.length;
+                      if (total === 0) {
+                         colorClass = 'bg-purple-500';
+                      } else {
+                         const comp = wrTasks.filter(t => t.status === 'Completed').length;
+                         const pct = comp / total;
+                         if (pct === 1) colorClass = 'bg-green-500';
+                         else if (pct >= 0.5) colorClass = 'bg-blue-500';
+                         else if (pct > 0) colorClass = 'bg-yellow-500';
+                         else colorClass = 'bg-orange-500';
+                      }
+                      if (ev.data.status === 'Cancelled') colorClass = 'bg-orange-500';
+                  }
+
+                  if (ev.data.assignedTo) {
+                      const u = DB.getById('users', ev.data.assignedTo);
+                      if (u) avatarName = u.name;
+                  }
+              } else {
+                  if (!isCompleted) {
+                      const s = ev.data.status;
+                      if (s === 'Approved') colorClass = 'bg-blue-500';
+                      else if (s === 'Under Review') colorClass = 'bg-yellow-500';
+                      else colorClass = 'bg-purple-500';
+                  }
+
+                  if (ev.data.requestedBy) {
+                      const u = DB.getById('users', ev.data.requestedBy);
+                      if (u) avatarName = u.name;
+                  }
+              }
+
+              const badge = el('div', {
+                class: `week-event-pill ${colorClass} ${isCompleted ? 'completed' : ''}`,
+                title: ev.type === 'wr' ? `Work Request: ${ev.data.title}` : `Disbursement: ${ev.data.description}`
+              });
+
+              const avatarWrap = el('div', { class: 'week-event-avatars' });
+              const img = el('img', { class: 'week-event-avatar', src: `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarName)}&background=random` });
+              avatarWrap.appendChild(img);
+              badge.appendChild(avatarWrap);
+
+              const titleText = ev.type === 'wr' ? ev.data.title : ev.data.description;
+              const entityPrefix = ev.data.entity ? `[${ev.data.entity.toUpperCase()}] ` : '';
+              badge.appendChild(el('span', { class: 'week-event-title', text: entityPrefix + titleText }));
+              badge.appendChild(el('span', { class: 'week-event-arrow', text: '›' }));
+
+              badge.onclick = (e) => {
+                e.stopPropagation();
+                this.expandedItemId = ev.data.id;
+                this.refreshCalendarCard();
+              };
+
+              cell.appendChild(badge);
+          });
+      }
     });
   },
 

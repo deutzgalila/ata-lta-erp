@@ -830,6 +830,44 @@ const Workflow = {
     const headerBar = el('div', { class: 'form-header-bar' });
     headerBar.appendChild(el('h2', { text: wr ? 'Edit Work Request' : 'Add Work Request' }));
     const topActions = el('div', { class: 'form-actions-top' });
+
+    // Use Retainer Template button (only on creation, not edit)
+    const templates = DB.getWhere('retainerTemplates', t => t.entity === entity);
+    let selectedTemplateId = null;
+    let templateBtnRef = null;
+    if (!wr && templates.length > 0) {
+      const templateWrapper = el('div', { class: 'template-btn-wrapper' });
+      const templateBtn = el('button', { type: 'button', class: 'btn btn-outline', text: 'Use Retainer Template' });
+      templateBtnRef = templateBtn;
+      const templateDropdown = el('div', { class: 'template-dropdown hidden' });
+
+      // "None" option to clear template
+      const noneItem = el('div', { class: 'template-dropdown-item active', text: '— None —' });
+      noneItem.dataset.templateId = '';
+      templateDropdown.appendChild(noneItem);
+
+      templates.forEach(t => {
+        const item = el('div', { class: 'template-dropdown-item', text: t.name });
+        item.dataset.templateId = t.id;
+        templateDropdown.appendChild(item);
+      });
+
+      templateBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        templateDropdown.classList.toggle('hidden');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', () => {
+        templateDropdown.classList.add('hidden');
+      });
+      templateDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+      templateWrapper.appendChild(templateBtn);
+      templateWrapper.appendChild(templateDropdown);
+      topActions.appendChild(templateWrapper);
+    }
+
     const saveBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Save Work Request', form: 'wr-form' });
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: 'Cancel' });
     cancelBtn.addEventListener('click', () => { this.view = 'list'; this.editingId = null; App.handleRoute(); });
@@ -888,16 +926,86 @@ const Workflow = {
     clientGroup.appendChild(clientSel);
     form.appendChild(clientGroup);
 
-    // Retainer Template selector
-    const templateGroup = el('div', { class: 'form-group' });
-    templateGroup.appendChild(el('label', { text: 'Use Retainer Template' }));
-    const templateSel = el('select', { name: 'templateId' });
-    templateSel.appendChild(el('option', { value: '', text: '— None —' }));
-    DB.getWhere('retainerTemplates', t => t.entity === entity).forEach(t => {
-      templateSel.appendChild(el('option', { value: t.id, text: t.name }));
-    });
-    templateGroup.appendChild(templateSel);
-    form.appendChild(templateGroup);
+    // Template dropdown item click handler (wired after form fields exist)
+    if (!wr && templates.length > 0) {
+      const templateDropdown = topActions.querySelector('.template-dropdown');
+      const dropdownItems = templateDropdown.querySelectorAll('.template-dropdown-item');
+      dropdownItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const templateId = item.dataset.templateId;
+          selectedTemplateId = templateId;
+          const tasksList = document.getElementById('task-rows');
+          const template = templateId ? DB.getById('retainerTemplates', templateId) : null;
+
+          // Update active state on dropdown items
+          dropdownItems.forEach(di => di.classList.remove('active'));
+          item.classList.add('active');
+
+          // Update button text
+          if (templateBtnRef) {
+            templateBtnRef.textContent = template ? template.name : 'Use Retainer Template';
+          }
+
+          // Close dropdown
+          templateDropdown.classList.add('hidden');
+
+          if (tasksList) {
+            if (template) {
+              // Fill form fields from template
+              const titleInput = form.querySelector('input[name="title"]');
+              const descInput = form.querySelector('input[name="description"]');
+              const dueDateInput = form.querySelector('input[name="dueDate"]');
+              const now = new Date();
+              const titleSuffix = now.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' });
+
+              if (titleInput) titleInput.value = `${template.name} (${titleSuffix})`;
+              if (descInput) descInput.value = template.description || '';
+
+              // Set due date: monthly = 1 month, quarterly = 3 months
+              if (dueDateInput) {
+                const dueDate = new Date(now);
+                if (template.schedule === 'quarterly') {
+                  dueDate.setMonth(dueDate.getMonth() + 3);
+                } else {
+                  dueDate.setMonth(dueDate.getMonth() + 1);
+                }
+                dueDateInput.value = dueDate.toISOString().slice(0, 10);
+              }
+
+              // Set client
+              if (clientSel && template.clientId) clientSel.value = template.clientId;
+
+              // Set priority to Normal for template-generated WRs
+              if (prioritySel) prioritySel.value = 'Normal';
+
+              // Load template tasks
+              this.loadTemplateTasks(templateId, tasksList);
+
+              // Lock fields
+              this.setTemplateFieldsLocked(form, tasksList, true);
+            } else {
+              // "None" selected — clear and unlock
+              const titleInput = form.querySelector('input[name="title"]');
+              const descInput = form.querySelector('input[name="description"]');
+              const dueDateInput = form.querySelector('input[name="dueDate"]');
+
+              if (titleInput) titleInput.value = '';
+              if (descInput) descInput.value = '';
+              if (dueDateInput) dueDateInput.value = '';
+              if (clientSel) clientSel.value = '';
+              if (prioritySel) prioritySel.value = 'Urgent';
+
+              while (tasksList.firstChild) tasksList.removeChild(tasksList.firstChild);
+              this.addTaskRow(tasksList);
+              this.addTaskRow(tasksList);
+              this.updatePredecessorOptions(tasksList);
+
+              this.setTemplateFieldsLocked(form, tasksList, false);
+            }
+          }
+        });
+      });
+    }
 
     // Retainer checkbox
     const retainerGroup = el('div', { class: 'form-group' });
@@ -931,11 +1039,10 @@ const Workflow = {
     const tasksList = el('div', { id: 'task-rows' });
     tasksSection.appendChild(tasksList);
 
-    const loadTemplateBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: 'Load Template Tasks' });
-    loadTemplateBtn.addEventListener('click', () => this.loadTemplateTasks(templateSel.value, tasksList));
-    tasksSection.appendChild(loadTemplateBtn);
+
 
     const addTaskBtn = el('button', { type: 'button', class: 'btn btn-ghost', text: '+ Add Task' });
+    addTaskBtn.setAttribute('data-role', 'add-task');
     addTaskBtn.addEventListener('click', () => this.addTaskRow(tasksList));
     tasksSection.appendChild(addTaskBtn);
     form.appendChild(tasksSection);
@@ -968,17 +1075,43 @@ const Workflow = {
 
     const assigneeSel = el('select', { class: 'task-assignee' });
     assigneeSel.appendChild(el('option', { value: '', text: '— Assignee —' }));
-    
+
     // Only show users from the same entity
     const entity = Auth.activeEntity;
     const staffPool = DB.getWhere('users', u => u.entities.includes(entity) || u.entities.includes(entity.toLowerCase()));
-    
+
     staffPool.forEach(u => {
       const opt = el('option', { value: u.id, text: u.name });
       if (taskData && (taskData.assigneeId === u.id || taskData.assignedTo === u.id)) opt.selected = true;
       assigneeSel.appendChild(opt);
     });
+
+    // Manual employee name option
+    assigneeSel.appendChild(el('option', { value: 'others', text: 'Others' }));
+    const assigneeOtherInput = el('input', {
+      type: 'text',
+      class: 'task-assignee-other',
+      placeholder: 'Enter employee name',
+      style: 'display: none;'
+    });
+    assigneeSel.addEventListener('change', () => {
+      const isOthers = assigneeSel.value === 'others';
+      assigneeOtherInput.style.display = isOthers ? 'inline-block' : 'none';
+      assigneeOtherInput.required = isOthers;
+      if (!isOthers) {
+        assigneeOtherInput.value = '';
+        assigneeOtherInput.classList.remove('input-error');
+      }
+    });
+    if (taskData?.assigneeName) {
+      assigneeSel.value = 'others';
+      assigneeOtherInput.value = taskData.assigneeName;
+      assigneeOtherInput.style.display = 'inline-block';
+      assigneeOtherInput.required = true;
+    }
+
     row.appendChild(assigneeSel);
+    row.appendChild(assigneeOtherInput);
 
     const predSel = el('select', { class: 'task-pred' });
     predSel.addEventListener('change', () => {
@@ -1025,6 +1158,29 @@ const Workflow = {
     });
   },
 
+  validateManualAssignees(form) {
+    const taskRows = form.querySelectorAll('.task-row');
+    let firstInvalid = null;
+    taskRows.forEach(row => {
+      const title = row.querySelector('.task-title-input')?.value.trim();
+      if (!title) return;
+      const assigneeSel = row.querySelector('.task-assignee');
+      const assigneeOtherInput = row.querySelector('.task-assignee-other');
+      if (assigneeSel?.value === 'others' && !assigneeOtherInput?.value.trim()) {
+        assigneeOtherInput.classList.add('input-error');
+        if (!firstInvalid) firstInvalid = assigneeOtherInput;
+      } else if (assigneeOtherInput) {
+        assigneeOtherInput.classList.remove('input-error');
+      }
+    });
+    if (firstInvalid) {
+      this.showMessage('Validation Error', 'Please enter an employee name for tasks marked as Others.', 'danger');
+      firstInvalid.focus();
+      return false;
+    }
+    return true;
+  },
+
   loadTemplateTasks(templateId, container) {
     if (!templateId) {
       this.showMessage('Error', 'Please select a retainer template first.', 'danger');
@@ -1039,8 +1195,54 @@ const Workflow = {
     this.updatePredecessorOptions(container);
   },
 
+  setTemplateFieldsLocked(form, tasksList, locked) {
+    // Lock/unlock form-level fields (title, description, dueDate, client, priority)
+    const fieldNames = ['title', 'description', 'dueDate', 'clientId', 'priority'];
+    fieldNames.forEach(name => {
+      const field = form.querySelector(`[name="${name}"]`);
+      if (field) {
+        const group = field.closest('.form-group');
+        if (locked) {
+          field.disabled = true;
+          if (field.tagName === 'INPUT') field.readOnly = true;
+          if (group) group.classList.add('template-locked');
+        } else {
+          field.disabled = false;
+          if (field.tagName === 'INPUT') field.readOnly = false;
+          if (group) group.classList.remove('template-locked');
+        }
+      }
+    });
+
+    // Lock/unlock task rows
+    const tasksSection = tasksList.closest('.form-section');
+    if (locked) {
+      tasksSection.classList.add('tasks-template-locked');
+      tasksList.querySelectorAll('.task-row').forEach(row => {
+        row.classList.add('template-locked');
+        const titleInput = row.querySelector('.task-title-input');
+        const predSel = row.querySelector('.task-pred');
+        if (titleInput) { titleInput.disabled = true; titleInput.readOnly = true; }
+        if (predSel) predSel.disabled = true;
+      });
+    } else {
+      tasksSection.classList.remove('tasks-template-locked');
+      tasksList.querySelectorAll('.task-row').forEach(row => {
+        row.classList.remove('template-locked');
+        const titleInput = row.querySelector('.task-title-input');
+        const predSel = row.querySelector('.task-pred');
+        if (titleInput) { titleInput.disabled = false; titleInput.readOnly = false; }
+        if (predSel) predSel.disabled = false;
+      });
+    }
+  },
+
   submitForm(form) {
-    if (!validateRequiredFields(form)) return;
+    // Temporarily enable disabled fields so FormData picks them up
+    const disabledFields = form.querySelectorAll('[disabled]');
+    disabledFields.forEach(f => f.disabled = false);
+    if (!validateRequiredFields(form)) { disabledFields.forEach(f => f.disabled = true); return; }
+    if (!this.validateManualAssignees(form)) { disabledFields.forEach(f => f.disabled = true); return; }
     const data = Object.fromEntries(new FormData(form).entries());
     const entity = Auth.activeEntity;
 
@@ -1062,10 +1264,14 @@ const Workflow = {
     taskRows.forEach(row => {
       const title = row.querySelector('.task-title-input').value.trim();
       if (!title) return;
+      const assigneeSel = row.querySelector('.task-assignee');
+      const assigneeOtherInput = row.querySelector('.task-assignee-other');
+      const isManualAssignee = assigneeSel.value === 'others';
       tasks.push({
         key: row.dataset.taskKey || generateId('tmp'),
         title,
-        assigneeId: row.querySelector('.task-assignee').value || null,
+        assigneeId: isManualAssignee ? null : (assigneeSel.value || null),
+        assigneeName: isManualAssignee ? (assigneeOtherInput.value.trim() || null) : null,
         predecessorKey: row.querySelector('.task-pred').value || ''
       });
     });
@@ -1098,6 +1304,7 @@ const Workflow = {
         workRequestId: recordId,
         title: t.title,
         assigneeId: t.assigneeId || null,
+        assigneeName: t.assigneeName || null,
         predecessors: predId ? [predId] : [],
         status: existing?.status || 'Draft',
         dueDate: record.dueDate,
@@ -1154,6 +1361,7 @@ const Workflow = {
           id: tmplMap.get(t.key),
           title: t.title,
           assigneeId: t.assigneeId || null,
+          assigneeName: t.assigneeName || null,
           predecessors: predId ? [predId] : []
         };
       });
@@ -1410,7 +1618,9 @@ const Workflow = {
       let totalHours = 0;
 
       groupTasks.forEach(t => {
-        const assignee = DB.getById('users', t.assigneeId || t.assignedTo);
+        const assignee = t.assigneeName
+          ? { name: t.assigneeName }
+          : DB.getById('users', t.assigneeId || t.assignedTo);
         const tr = el('tr', { class: 'task-row-v2 task-expand' });
         
         // Totals calculation
@@ -2254,7 +2464,24 @@ const Workflow = {
     DB.getAll('users').forEach(u => {
       assigneeSel.appendChild(el('option', { value: u.id, text: u.name }));
     });
+    assigneeSel.appendChild(el('option', { value: 'others', text: 'Others' }));
+    const assigneeOtherInput = el('input', {
+      type: 'text',
+      name: 'assigneeName',
+      placeholder: 'Enter employee name',
+      style: 'display: none; margin-top: var(--spacing-sm);'
+    });
+    assigneeSel.addEventListener('change', () => {
+      const isOthers = assigneeSel.value === 'others';
+      assigneeOtherInput.style.display = isOthers ? 'block' : 'none';
+      assigneeOtherInput.required = isOthers;
+      if (!isOthers) {
+        assigneeOtherInput.value = '';
+        assigneeOtherInput.classList.remove('input-error');
+      }
+    });
     assigneeGroup.appendChild(assigneeSel);
+    assigneeGroup.appendChild(assigneeOtherInput);
     form.appendChild(assigneeGroup);
 
     form.appendChild(el('div', { class: 'form-group' }, [
@@ -2271,6 +2498,18 @@ const Workflow = {
     priorityGroup.appendChild(prioritySel);
     form.appendChild(priorityGroup);
 
+    const predecessorGroup = el('div', { class: 'form-group' });
+    predecessorGroup.appendChild(el('label', { text: 'Predecessor' }));
+    const predSel = el('select', { name: 'predecessorId' });
+    predSel.appendChild(el('option', { value: '', text: '— No predecessor —' }));
+    const existingTasks = DB.getWhere('tasks', t => t.workRequestId === wrId);
+    existingTasks.forEach(t => {
+      const title = t.title?.trim() || 'Untitled task';
+      predSel.appendChild(el('option', { value: t.id, text: title }));
+    });
+    predecessorGroup.appendChild(predSel);
+    form.appendChild(predecessorGroup);
+
     const submitBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Add Task' });
     form.appendChild(submitBtn);
 
@@ -2278,18 +2517,28 @@ const Workflow = {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!validateRequiredFields(form)) return;
+      if (assigneeSel.value === 'others' && !assigneeOtherInput.value.trim()) {
+        assigneeOtherInput.classList.add('input-error');
+        assigneeOtherInput.focus();
+        this.showMessage('Validation Error', 'Please enter an employee name.', 'danger');
+        return;
+      }
+      assigneeOtherInput.classList.remove('input-error');
       const data = Object.fromEntries(new FormData(form).entries());
+      const isManualAssignee = data.assigneeId === 'others';
+      const predecessorId = data.predecessorId || '';
       const newTask = {
         id: generateId('t'),
         workRequestId: wrId,
         title: data.title.trim(),
-        assigneeId: data.assigneeId || null,
+        assigneeId: isManualAssignee ? null : (data.assigneeId || null),
+        assigneeName: isManualAssignee ? (data.assigneeName?.trim() || null) : null,
         status: 'Draft',
         priority: data.priority || 'Normal',
         dueDate: data.dueDate || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        predecessors: [],
+        predecessors: predecessorId ? [predecessorId] : [],
         timeLogs: [],
         taskDocuments: [],
         comments: []
@@ -2606,9 +2855,7 @@ const Workflow = {
       tr.appendChild(el('td', { text: formatPHP(t.pfAmount || 0) }));
       tr.appendChild(el('td', { text: String((t.tasks || []).length) }));
       const tdAct = el('td');
-      const genBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Generate' });
-      genBtn.addEventListener('click', () => this.generateFromTemplate(t.id));
-      tdAct.appendChild(genBtn);
+
       const editBtn = el('button', { class: 'btn btn-ghost btn-sm', text: 'Edit' });
       editBtn.addEventListener('click', () => { this.view = 'templateForm'; this.templateEditingId = t.id; App.handleRoute(); });
       tdAct.appendChild(editBtn);
@@ -2736,6 +2983,7 @@ const Workflow = {
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (!this.validateManualAssignees(form)) return;
       this.submitTemplateForm(form, tasksList);
     });
 
@@ -2752,10 +3000,14 @@ const Workflow = {
     taskRows.forEach(row => {
       const title = row.querySelector('.task-title-input').value.trim();
       if (!title) return;
+      const assigneeSel = row.querySelector('.task-assignee');
+      const assigneeOtherInput = row.querySelector('.task-assignee-other');
+      const isManualAssignee = assigneeSel?.value === 'others';
       tasks.push({
         key: row.dataset.taskKey || generateId('tmp'),
         title,
-        assigneeId: row.querySelector('.task-assignee')?.value || null,
+        assigneeId: isManualAssignee ? null : (assigneeSel?.value || null),
+        assigneeName: isManualAssignee ? (assigneeOtherInput?.value.trim() || null) : null,
         predecessorKey: row.querySelector('.task-pred')?.value || ''
       });
     });
@@ -2778,6 +3030,7 @@ const Workflow = {
         id: idMap.get(t.key),
         title: t.title,
         assigneeId: t.assigneeId || null,
+        assigneeName: t.assigneeName || null,
         predecessors: predId ? [predId] : []
       };
     });
@@ -2905,6 +3158,7 @@ const Workflow = {
         workRequestId: workRequest.id,
         title: t.title,
         assigneeId: t.assigneeId || null,
+        assigneeName: t.assigneeName || null,
         predecessors: mappedPreds,
         status: 'Draft',
         dueDate: workRequest.dueDate,

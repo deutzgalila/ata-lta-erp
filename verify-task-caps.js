@@ -28,7 +28,9 @@ async function runVerification() {
     }
 
     try {
-      // 1. Setup mock records
+      // ----------------------------------------------------
+      // Phase-dependent task progress caps tests
+      // ----------------------------------------------------
       const wrDraftId = 'wr-test-draft';
       const wrPreprocId = 'wr-test-preproc';
       const wrBillingId = 'wr-test-billing';
@@ -53,10 +55,7 @@ async function runVerification() {
       DB.insert('tasks', { id: taskBillingId, workRequestId: wrBillingId, title: 'Billing task', status: 'In Progress' });
       DB.insert('tasks', { id: taskCompletedId, workRequestId: wrCompletedId, title: 'Completed WR task', status: 'In Progress' });
 
-      // ----------------------------------------------------
       // Case 1: Work Request is in Draft
-      // Capped at Assigned. Allowed: Draft, Assigned, Cancelled.
-      // ----------------------------------------------------
       const taskDraft = DB.getById('tasks', taskDraftWrId);
       const allowedDraft = Workflow.getValidNextStatuses(taskDraft);
       assert(
@@ -79,10 +78,7 @@ async function runVerification() {
         `Result: ${JSON.stringify(res1_valid)}`
       );
 
-      // ----------------------------------------------------
       // Case 2: Work Request is in Pre-processing (Requirement task)
-      // Capped at Completed. Full flow allowed.
-      // ----------------------------------------------------
       let taskReq = DB.getById('tasks', taskReqPreprocId);
       let allowedReq = Workflow.getValidNextStatuses(taskReq);
       assert(
@@ -91,7 +87,6 @@ async function runVerification() {
         `Allowed statuses: ${JSON.stringify(allowedReq)}`
       );
 
-      // Transition to Assigned
       let res2_assigned = Workflow.updateTaskStatus(taskReqPreprocId, 'Assigned');
       assert('Case 2: Transition to Assigned', res2_assigned.success === true, `Result: ${JSON.stringify(res2_assigned)}`);
 
@@ -103,7 +98,6 @@ async function runVerification() {
         `Allowed statuses: ${JSON.stringify(allowedReq)}`
       );
 
-      // Transition to In Progress
       let res2_in_progress = Workflow.updateTaskStatus(taskReqPreprocId, 'In Progress');
       assert('Case 2: Transition to In Progress', res2_in_progress.success === true, `Result: ${JSON.stringify(res2_in_progress)}`);
 
@@ -115,7 +109,6 @@ async function runVerification() {
         `Allowed statuses: ${JSON.stringify(allowedReq)}`
       );
 
-      // Transition to For Review
       let res2_for_review = Workflow.updateTaskStatus(taskReqPreprocId, 'For Review');
       assert('Case 2: Transition to For Review', res2_for_review.success === true, `Result: ${JSON.stringify(res2_for_review)}`);
 
@@ -127,14 +120,10 @@ async function runVerification() {
         `Allowed statuses: ${JSON.stringify(allowedReq)}`
       );
 
-      // Transition to Completed
       let res2_completed = Workflow.updateTaskStatus(taskReqPreprocId, 'Completed');
       assert('Case 2: Transition to Completed', res2_completed.success === true, `Result: ${JSON.stringify(res2_completed)}`);
 
-      // ----------------------------------------------------
       // Case 3: Work Request is in Pre-processing (Non-requirement task)
-      // Capped at Assigned. Allowed: Draft, Assigned, Cancelled.
-      // ----------------------------------------------------
       let taskNonReq = DB.getById('tasks', taskNonReqPreprocId);
       let allowedNonReq = Workflow.getValidNextStatuses(taskNonReq);
       assert(
@@ -143,11 +132,9 @@ async function runVerification() {
         `Allowed statuses: ${JSON.stringify(allowedNonReq)}`
       );
 
-      // Transition to Assigned
       let res3_assigned = Workflow.updateTaskStatus(taskNonReqPreprocId, 'Assigned');
       assert('Case 3: Transition to Assigned', res3_assigned.success === true, `Result: ${JSON.stringify(res3_assigned)}`);
 
-      // Now it's in Assigned. Since it is capped at Assigned, it shouldn't be allowed to go to In Progress.
       taskNonReq = DB.getById('tasks', taskNonReqPreprocId);
       allowedNonReq = Workflow.getValidNextStatuses(taskNonReq);
       assert(
@@ -163,10 +150,7 @@ async function runVerification() {
         `Result error: ${res3_invalid.error}`
       );
 
-      // ----------------------------------------------------
       // Case 4: Work Request is in Billing
-      // Capped at its current status (In Progress). Cannot go to For Review or Completed.
-      // ----------------------------------------------------
       const taskBilling = DB.getById('tasks', taskBillingId);
       const allowedBilling = Workflow.getValidNextStatuses(taskBilling);
       assert(
@@ -182,10 +166,7 @@ async function runVerification() {
         `Result error: ${res4_invalid.error}`
       );
 
-      // ----------------------------------------------------
       // Case 5: Work Request is in Completed
-      // Locked as immutable.
-      // ----------------------------------------------------
       const taskCompleted = DB.getById('tasks', taskCompletedId);
       const allowedCompleted = Workflow.getValidNextStatuses(taskCompleted);
       assert(
@@ -201,9 +182,7 @@ async function runVerification() {
         `Result error: ${res5_invalid.error}`
       );
 
-      // ----------------------------------------------------
-      // Clean up
-      // ----------------------------------------------------
+      // Clean up phase-dependent task progress caps tests
       DB.delete('workRequests', wrDraftId);
       DB.delete('workRequests', wrPreprocId);
       DB.delete('workRequests', wrBillingId);
@@ -214,6 +193,63 @@ async function runVerification() {
       DB.delete('tasks', taskNonReqPreprocId);
       DB.delete('tasks', taskBillingId);
       DB.delete('tasks', taskCompletedId);
+
+      // ----------------------------------------------------
+      // Assignee dropdown and block transition verification
+      // ----------------------------------------------------
+      // 1. Verify that renderForm() contains a select element with name="assignedTo"
+      Workflow.editingId = null;
+      const formEl = Workflow.renderForm();
+      const assigneeDropdown = formEl.querySelector('select[name="assignedTo"]');
+      assert(
+        'Case 6: Assignee dropdown presence',
+        !!assigneeDropdown,
+        `Assignee dropdown element: ${assigneeDropdown ? 'found' : 'not found'}`
+      );
+
+      // 2. Verify that saving a Work Request with assignedTo saves correctly
+      const testClientId = DB.getAll('clients')[0]?.id || 'c-test-1';
+      const staffUser = DB.getWhere('users', u => u.role === 'Staff')[0];
+      const testStaffId = staffUser ? staffUser.id : 'u-test-staff';
+      
+      const formNode = formEl.querySelector('form');
+      
+      // Let's inspect required fields
+      const requiredFieldsBefore = Array.from(formNode.querySelectorAll('[required]'));
+      console.log('Required fields in form:', JSON.stringify(requiredFieldsBefore.map(f => ({ name: f.name, tagName: f.tagName, value: f.value }))));
+
+      // Set field values
+      formNode.querySelector('input[name="title"]').value = 'Test WR with Assignee';
+      formNode.querySelector('input[name="description"]').value = 'Test Description';
+      formNode.querySelector('input[name="dueDate"]').value = '2026-06-25';
+      formNode.querySelector('select[name="clientId"]').value = testClientId;
+      formNode.querySelector('select[name="assignedTo"]').value = testStaffId;
+
+      // Mock submitForm by calling it
+      Workflow.submitForm(formNode);
+
+      // Check if it exists in workRequests DB now
+      const savedWr = DB.getAll('workRequests').find(wr => wr.title === 'Test WR with Assignee');
+      assert(
+        'Case 7: AssignedTo field saved in workRequests',
+        savedWr && savedWr.assignedTo === testStaffId,
+        `Saved WR: ${JSON.stringify(savedWr)}`
+      );
+
+      // 3. Verify that a Work Request with an assignee is no longer blocked from transitioning to Pre-processing
+      if (savedWr) {
+        const tsBefore = Workflow.getPhaseTransitionStatus(savedWr.id);
+        const hasEmployeeAssignmentError = tsBefore?.missing?.includes('Employee assignment');
+        assert(
+          'Case 8: Transition eligibility has no Employee assignment error',
+          !hasEmployeeAssignmentError,
+          `Missing fields before assignee: ${JSON.stringify(tsBefore?.missing)}`
+        );
+
+        // Clean up created WR and associated tasks
+        DB.delete('workRequests', savedWr.id);
+        DB.getWhere('tasks', t => t.workRequestId === savedWr.id).forEach(t => DB.delete('tasks', t.id));
+      }
 
     } catch (e) {
       testResults.push({ label: 'Error inside evaluate', passed: false, detail: e.toString() });

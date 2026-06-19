@@ -1190,6 +1190,19 @@ const Workflow = {
     clientGroup.appendChild(clientSel);
     form.appendChild(clientGroup);
 
+    // Assignee dropdown
+    const assigneeGroup = el('div', { class: 'form-group' });
+    assigneeGroup.appendChild(el('label', { text: 'Assignee' }));
+    const assigneeSel = el('select', { name: 'assignedTo' });
+    assigneeSel.appendChild(el('option', { value: '', text: '— Select Assignee —' }));
+    DB.getWhere('users', u => u.entities.includes(entity) || u.entities.includes(entity.toLowerCase())).forEach(u => {
+      const opt = el('option', { value: u.id, text: u.name });
+      if (wr && wr.assignedTo === u.id) opt.selected = true;
+      assigneeSel.appendChild(opt);
+    });
+    assigneeGroup.appendChild(assigneeSel);
+    form.appendChild(assigneeGroup);
+
     // Template dropdown item click handler (wired after form fields exist)
     if (!wr && templates.length > 0) {
       const templateDropdown = topActions.querySelector('.template-dropdown');
@@ -1599,6 +1612,7 @@ const Workflow = {
       priority: data.priority?.trim() || 'Priority',
       dueDate: data.dueDate || '',
       entity: entity,
+      assignedTo: data.assignedTo || null,
       status: this.editingId ? (DB.getById('workRequests', this.editingId)?.status || 'Draft') : 'Draft',
       updatedAt: now
     };

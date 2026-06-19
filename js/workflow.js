@@ -704,7 +704,24 @@ const Workflow = {
         wrs = wrs.filter(r => myWrIds.has(r.id) || r.assignedTo === Auth.user.id);
       }
       if (priorityFilter.value) wrs = wrs.filter(r => r.priority === priorityFilter.value);
-      if (empFilter.value) wrs = wrs.filter(r => r.assignedTo === empFilter.value);
+      if (empFilter.searchText && empFilter.searchText.trim() !== '') {
+        const query = empFilter.searchText.trim().toLowerCase();
+        wrs = wrs.filter(r => {
+          const assignedUser = r.assignedTo ? DB.getById('users', r.assignedTo) : null;
+          if (assignedUser && assignedUser.name.toLowerCase().includes(query)) return true;
+          const tasks = DB.getWhere('tasks', t => t.workRequestId === r.id);
+          return tasks.some(t => {
+            if (t.assigneeId) {
+              const u = DB.getById('users', t.assigneeId);
+              if (u && u.name.toLowerCase().includes(query)) return true;
+            }
+            if (t.assigneeName && t.assigneeName.toLowerCase().includes(query)) return true;
+            return false;
+          });
+        });
+      } else if (empFilter.value) {
+        wrs = wrs.filter(r => r.assignedTo === empFilter.value);
+      }
       if (clientFilter.value) wrs = wrs.filter(r => r.clientId === clientFilter.value);
       if (dateFrom.value) wrs = wrs.filter(r => r.dueDate && r.dueDate >= dateFrom.value);
       if (dateTo.value) wrs = wrs.filter(r => r.dueDate && r.dueDate <= dateTo.value);
@@ -716,6 +733,7 @@ const Workflow = {
     };
 
     [priorityFilter, empFilter, clientFilter, dateFrom, dateTo, statusFilter].forEach(el => el.addEventListener('change', () => { saveCurrentFilters(); refresh(); }));
+    empFilter.addEventListener('input', () => { saveCurrentFilters(); refresh(); });
     refresh();
 
     return wrapper;
@@ -2084,19 +2102,40 @@ const Workflow = {
           const assigneeOtherInput = el('input', {
             type: 'text',
             class: 'form-control',
-            placeholder: 'Enter name',
+            placeholder: 'Type assignee name',
             value: t.assigneeName || '',
-            style: (t.assigneeName ? 'display: block;' : 'display: none;') + 'margin-top: 4px; font-size: 12px; padding: 2px 4px;'
+            style: 'font-size: 12px; padding: 2px 4px; flex: 1;'
           });
+
+          const backBtn = el('button', {
+            class: 'btn btn-secondary btn-xs',
+            text: '←',
+            style: 'margin-left: 4px; padding: 2px 6px; font-size: 12px; cursor: pointer;'
+          });
+
+          const inputRow = el('div', {
+            style: 'display: flex; align-items: center; margin-top: 4px;'
+          });
+          inputRow.appendChild(assigneeOtherInput);
+          inputRow.appendChild(backBtn);
           
           if (t.assigneeName) {
             assigneeSel.value = 'others';
+            assigneeSel.style.display = 'none';
+            inputRow.style.display = 'flex';
+          } else {
+            assigneeSel.style.display = 'block';
+            inputRow.style.display = 'none';
           }
           
           assigneeSel.addEventListener('change', () => {
             const isOthers = assigneeSel.value === 'others';
-            assigneeOtherInput.style.display = isOthers ? 'block' : 'none';
-            if (!isOthers) {
+            if (isOthers) {
+              assigneeSel.style.display = 'none';
+              inputRow.style.display = 'flex';
+              assigneeOtherInput.focus();
+            } else {
+              inputRow.style.display = 'none';
               assigneeOtherInput.value = '';
               DB.update('tasks', t.id, { 
                 assigneeId: assigneeSel.value || null, 
@@ -2120,10 +2159,24 @@ const Workflow = {
               App.handleRoute();
             }
           });
+
+          backBtn.addEventListener('click', () => {
+            assigneeSel.value = '';
+            assigneeOtherInput.value = '';
+            inputRow.style.display = 'none';
+            assigneeSel.style.display = 'block';
+            DB.update('tasks', t.id, {
+              assigneeId: null,
+              assigneeName: null,
+              status: 'Draft',
+              updatedAt: new Date().toISOString()
+            });
+            App.handleRoute();
+          });
           
-          const assigneeWrap = el('div', { style: 'display: flex; flex-direction: column;' });
+          const assigneeWrap = el('div', { class: 'task-assignee-wrapper', style: 'display: flex; flex-direction: column;' });
           assigneeWrap.appendChild(assigneeSel);
-          assigneeWrap.appendChild(assigneeOtherInput);
+          assigneeWrap.appendChild(inputRow);
           tdAssignee.appendChild(assigneeWrap);
         } else {
           const assigneeWrap = el('div', { style: 'display:flex; align-items:center; gap:var(--spacing-xs);' });

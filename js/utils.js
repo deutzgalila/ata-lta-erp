@@ -176,6 +176,7 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
     input.value = val ? text : '';
     if (changed) {
       wrapper.dispatchEvent(new Event('change', { bubbles: true }));
+      wrapper.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
 
@@ -204,6 +205,8 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
     highlightIdx = -1;
     if (!isOpen) open();
     renderList(input.value);
+    wrapper.dispatchEvent(new Event('input', { bubbles: true }));
+    wrapper.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
   input.addEventListener('blur', () => {
@@ -260,6 +263,10 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
         input.value = selectedText;
       }
     }
+  });
+
+  Object.defineProperty(wrapper, 'searchText', {
+    get() { return input.value; }
   });
 
   // Expose addEventListener on wrapper (already works since it's a div)

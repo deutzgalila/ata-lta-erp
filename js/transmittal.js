@@ -200,14 +200,15 @@ const Transmittal = {
     const listContainer = el('div');
     wrapper.appendChild(listContainer);
 
-    const updateFilters = () => this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, statusFilter.value, dateFrom.value, dateTo.value);
+    const updateFilters = () => this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, statusFilter.value, dateFrom.value, dateTo.value, empFilter.searchText);
     [wrFilter, clientFilter, empFilter, statusFilter, dateFrom, dateTo].forEach(f => f.addEventListener('change', () => { saveCurrentFilters(); updateFilters(); }));
+    empFilter.addEventListener('input', () => { saveCurrentFilters(); updateFilters(); });
 
-    this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, statusFilter.value, dateFrom.value, dateTo.value);
+    this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, statusFilter.value, dateFrom.value, dateTo.value, empFilter.searchText);
     return wrapper;
   },
 
-  refreshList(container, wrFilter, clientFilter, empFilter, statusFilter, dateFrom, dateTo) {
+  refreshList(container, wrFilter, clientFilter, empFilter, statusFilter, dateFrom, dateTo, empSearchText) {
     while (container.firstChild) container.removeChild(container.firstChild);
     const entity = Auth.activeEntity;
 
@@ -215,7 +216,19 @@ const Transmittal = {
 
     if (wrFilter) items = items.filter(t => t.workRequestId === wrFilter);
     if (clientFilter) items = items.filter(t => t.clientId === clientFilter);
-    if (empFilter) items = items.filter(t => t.createdBy === empFilter || t.sentBy === empFilter || t.acknowledgedBy === empFilter);
+    if (empSearchText && empSearchText.trim() !== '') {
+      const query = empSearchText.trim().toLowerCase();
+      items = items.filter(t => {
+        const creator = t.createdBy ? DB.getById('users', t.createdBy) : null;
+        const sender = t.sentBy ? DB.getById('users', t.sentBy) : null;
+        const acknowledger = t.acknowledgedBy ? DB.getById('users', t.acknowledgedBy) : null;
+        return (creator && creator.name.toLowerCase().includes(query)) ||
+               (sender && sender.name.toLowerCase().includes(query)) ||
+               (acknowledger && acknowledger.name.toLowerCase().includes(query));
+      });
+    } else if (empFilter) {
+      items = items.filter(t => t.createdBy === empFilter || t.sentBy === empFilter || t.acknowledgedBy === empFilter);
+    }
     if (statusFilter) items = items.filter(t => t.status === statusFilter);
     if (dateFrom) {
       const fromTime = new Date(dateFrom).getTime();

@@ -93,7 +93,7 @@ const DMS = {
         saveCurrentFilters();
         App.setPreferredViewMode('documents', mode);
         this.listViewMode = mode;
-        this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value);
+        this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value, empFilter.searchText);
       });
       viewToggle.appendChild(btn);
     });
@@ -197,17 +197,18 @@ const DMS = {
     const listContainer = el('div');
     wrapper.appendChild(listContainer);
 
-    const updateFilters = () => this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value);
+    const updateFilters = () => this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value, empFilter.searchText);
     [wrFilter, clientFilter, empFilter, dateFrom, dateTo].forEach(f => f.addEventListener('change', () => { saveCurrentFilters(); updateFilters(); }));
+    empFilter.addEventListener('input', () => { saveCurrentFilters(); updateFilters(); });
     if (entityFilter) {
-      entityFilter.addEventListener('change', () => { saveCurrentFilters(); this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value); });
+      entityFilter.addEventListener('change', () => { saveCurrentFilters(); this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value, empFilter.searchText); });
     }
 
-    this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value);
+    this.refreshList(listContainer, wrFilter.value, clientFilter.value, empFilter.value, dateFrom.value, dateTo.value, empFilter.searchText);
     return wrapper;
   },
 
-  refreshList(container, wrFilter, clientFilter, empFilter, dateFrom, dateTo) {
+  refreshList(container, wrFilter, clientFilter, empFilter, dateFrom, dateTo, empSearchText) {
     while (container.firstChild) container.removeChild(container.firstChild);
     const entity = Auth.activeEntity;
 
@@ -226,7 +227,15 @@ const DMS = {
         return wr && wr.clientId === clientFilter;
       });
     }
-    if (empFilter) docs = docs.filter(d => d.uploader === empFilter);
+    if (empSearchText && empSearchText.trim() !== '') {
+      const query = empSearchText.trim().toLowerCase();
+      docs = docs.filter(d => {
+        const u = d.uploader ? DB.getById('users', d.uploader) : null;
+        return u && u.name.toLowerCase().includes(query);
+      });
+    } else if (empFilter) {
+      docs = docs.filter(d => d.uploader === empFilter);
+    }
     if (dateFrom) {
       const fromTime = new Date(dateFrom).getTime();
       docs = docs.filter(d => new Date(d.uploadDate).getTime() >= fromTime);

@@ -5523,11 +5523,27 @@ tbody tr:hover {
   width: 100%;
 }
 
-.filters-bar .filter-field-wrapper select.form-select,
-.filters-bar .filter-field-wrapper input,
-.audit-filters .filter-field-wrapper select.form-select,
-.audit-filters .filter-field-wrapper input {
+.filters-bar .filter-field-wrapper.has-value select.form-select,
+.filters-bar .filter-field-wrapper.has-value input,
+.audit-filters .filter-field-wrapper.has-value select.form-select,
+.audit-filters .filter-field-wrapper.has-value input {
   padding-right: 44px !important;
+}
+
+/* Date input dynamic sizing */
+.filters-bar .filter-field-wrapper input[type="date"],
+.audit-filters .filter-field-wrapper input[type="date"] {
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+  transition: width 0.15s ease-in-out, min-width 0.15s ease-in-out, max-width 0.15s ease-in-out;
+}
+
+.filters-bar .filter-field-wrapper.has-value input[type="date"],
+.audit-filters .filter-field-wrapper.has-value input[type="date"] {
+  width: 175px;
+  min-width: 175px;
+  max-width: 175px;
 }
 
 .filter-field-clear {

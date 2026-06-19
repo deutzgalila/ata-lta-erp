@@ -156,8 +156,8 @@ const DMS = {
     const empFilter = createSearchableDropdown({ placeholder: 'All Uploaders', options: empOptions, maxWidth: '180px' });
     filtersBar.appendChild(empFilter);
 
-    const dateFrom = el('input', { type: 'date', class: 'form-select', style: 'max-width:140px' });
-    const dateTo = el('input', { type: 'date', class: 'form-select', style: 'max-width:140px' });
+    const dateFrom = el('input', { type: 'date', class: 'form-select' });
+    const dateTo = el('input', { type: 'date', class: 'form-select' });
     filtersBar.appendChild(el('span', { text: 'From:', style: 'font-size:0.75rem;color:var(--color-text-muted);' }));
     filtersBar.appendChild(wrapFilterFieldWithClear(dateFrom));
     filtersBar.appendChild(el('span', { text: 'To:', style: 'font-size:0.75rem;color:var(--color-text-muted);' }));

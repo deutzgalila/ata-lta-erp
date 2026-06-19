@@ -323,7 +323,9 @@ function wrapFilterFieldWithClear(element, onClear) {
   wrapper.appendChild(clearBtn);
   
   function updateClearVisibility() {
-    clearBtn.style.display = element.value ? 'flex' : 'none';
+    const hasVal = !!element.value;
+    clearBtn.style.display = hasVal ? 'flex' : 'none';
+    wrapper.classList.toggle('has-value', hasVal);
   }
   
   // Intercept the setter on the element's value property so programmatic changes update the button

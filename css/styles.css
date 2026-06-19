@@ -5544,9 +5544,9 @@ tbody tr:hover {
 
 .filters-bar .filter-field-wrapper.has-value input[type="date"],
 .audit-filters .filter-field-wrapper.has-value input[type="date"] {
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
   padding-right: 62px !important;
 }
 

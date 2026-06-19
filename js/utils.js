@@ -123,16 +123,10 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
   arrow.className = 'searchable-dropdown-arrow';
   arrow.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 
-  const clearBtn = document.createElement('span');
-  clearBtn.className = 'searchable-dropdown-clear';
-  clearBtn.textContent = '×';
-  clearBtn.style.display = 'none';
-
   const listbox = document.createElement('div');
   listbox.className = 'searchable-dropdown-listbox';
 
   wrapper.appendChild(input);
-  wrapper.appendChild(clearBtn);
   wrapper.appendChild(arrow);
   wrapper.appendChild(listbox);
 
@@ -188,7 +182,6 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
     selectedValue = val;
     selectedText = text;
     input.value = val ? text : '';
-    clearBtn.style.display = val ? 'flex' : 'none';
     if (changed) {
       wrapper.dispatchEvent(new Event('change', { bubbles: true }));
       wrapper.dispatchEvent(new Event('input', { bubbles: true }));
@@ -252,13 +245,6 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
     }
   });
 
-  clearBtn.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    selectOption('', '');
-    close();
-  });
-
   arrow.addEventListener('mousedown', (e) => {
     e.preventDefault();
     if (isOpen) { close(); input.blur(); }
@@ -284,7 +270,6 @@ function createSearchableDropdown({ placeholder, options, maxWidth }) {
         selectedText = match ? match.text : val;
         input.value = selectedText;
       }
-      clearBtn.style.display = val ? 'flex' : 'none';
     }
   });
 

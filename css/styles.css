@@ -7350,25 +7350,14 @@ tbody tr:hover {
  * ============================================================ */
 
 .side-pane-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.22);
-  z-index: 999;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-  backdrop-filter: blur(1px);
-}
-.side-pane-overlay.open {
-  opacity: 1;
-  pointer-events: auto;
+  display: none !important;
 }
 
 .side-pane {
   position: fixed;
   top: 0;
   right: 0;
-  width: 540px;
+  width: 50vw;
   max-width: 90vw;
   height: 100vh;
   background: var(--color-surface);
@@ -7379,9 +7368,44 @@ tbody tr:hover {
   transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  border-left: 1px solid var(--color-border);
 }
 .side-pane.open {
   transform: translateX(0);
+}
+
+/* Notion-style collapsible sections */
+.side-pane-toggle-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 12px 24px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  user-select: none;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  margin-top: -1px; /* collapse double borders */
+}
+.side-pane-toggle-header::before {
+  content: '▼';
+  font-size: 9px;
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+.side-pane-toggle-header.collapsed::before {
+  transform: rotate(-90deg);
+}
+.side-pane-toggle-content {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+.side-pane-toggle-content.collapsed {
+  display: none;
 }
 
 .side-pane-header {
@@ -7665,4 +7689,36 @@ tbody tr:hover {
     display: none !important;
   }
 }
+
+/* Notion-style Embed Buttons */
+.notion-embed-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  width: 100%;
+  text-align: left;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.notion-embed-option:hover {
+  background: color-mix(in srgb, var(--color-primary), transparent 93%);
+  border-color: var(--color-primary);
+}
+.notion-embed-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 

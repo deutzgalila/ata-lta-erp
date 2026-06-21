@@ -6687,7 +6687,7 @@ tbody tr:hover {
 .detail-panel .checklist-item,
 .side-pane-toggle-content .checklist-item {
   display: grid;
-  grid-template-columns: 28px 1fr minmax(150px, 1.2fr) 60px 80px;
+  grid-template-columns: 28px 1fr 280px 60px 80px;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) 0;
@@ -6702,6 +6702,38 @@ tbody tr:hover {
 .detail-panel .checklist-item > div:last-child,
 .side-pane-toggle-content .checklist-item > div:last-child {
   justify-self: end;
+}
+
+/* Width constraints for assignee dropdowns inside checklist items to prevent overlap */
+.checklist-item .task-assignee-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.checklist-item .task-assignee-wrapper .checklist-assignee-dropdown {
+  width: 130px;
+  min-width: 110px;
+  max-width: 140px;
+  flex-shrink: 0;
+}
+
+.checklist-item .task-assignee-wrapper .task-coassignee-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: auto;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.checklist-item .task-assignee-wrapper .inline-coassignee-dropdown {
+  width: 110px;
+  min-width: 90px;
+  max-width: 130px;
+  flex-shrink: 0;
 }
 
 .detail-panel .checklist-item:last-child,

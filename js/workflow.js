@@ -1261,7 +1261,9 @@ const Workflow = {
 
     // Due Date Row
     propsSec.appendChild(propLabel('Due Date', dateIcon));
-    propsSec.appendChild(el('div', { class: 'side-pane-prop-value', text: task.dueDate ? formatDate(task.dueDate) : '—' }));
+    propsSec.appendChild(el('div', { class: 'side-pane-prop-value' }, [
+      el('span', { text: task.dueDate ? formatDate(task.dueDate) : '—' })
+    ]));
 
     // Assignee Row
     propsSec.appendChild(propLabel('Assignee', assigneeIcon));
@@ -1269,135 +1271,483 @@ const Workflow = {
 
     paneContent.appendChild(propsSec);
 
-    // Description Section
-    const descSec = el('div', { class: 'side-pane-section' }, [
-      el('h4', { class: 'side-pane-section-title', text: 'Description' }),
-      el('div', { class: 'side-pane-description', text: task.description || 'No description provided.' })
-    ]);
-    paneContent.appendChild(descSec);
+    // Accordion helper function
+    const createCollapsibleSection = (title, defaultExpanded, renderContentFn) => {
+      const header = el('div', { class: 'side-pane-toggle-header' + (defaultExpanded ? '' : ' collapsed'), text: title });
+      const content = el('div', { class: 'side-pane-toggle-content' + (defaultExpanded ? '' : ' collapsed') });
+      
+      header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+      });
+      
+      renderContentFn(content);
+      return [header, content];
+    };
 
-    // Requirements Checklist Section
-    const taskListEl = el('div', { class: 'side-pane-task-list' });
-    const normalizedChecklist = (task.checklist || []).map(item => {
-      if (typeof item === 'string') return { id: generateId('chk'), text: item, completed: false, assigneeId: null, assigneeName: null, dependsOn: null, timeLogs: [] };
-      return item;
+    // 1. Task Description Collapsible Section
+    const [descHeader, descContent] = createCollapsibleSection('Task Description', true, (cont) => {
+      cont.appendChild(el('div', { class: 'side-pane-description', text: task.description || 'Provide an overview of the task and related details.' }));
     });
+    paneContent.appendChild(descHeader);
+    paneContent.appendChild(descContent);
 
-    const tasksSec = el('div', { class: 'side-pane-section' }, [
-      el('h4', { class: 'side-pane-section-title', text: 'Requirements Checklist' }),
-      taskListEl
-    ]);
+    // 2. Requirements Checklist Collapsible Section
+    const [checklistHeaderToggle, checklistContentToggle] = createCollapsibleSection('Sub-tasks / Requirements Checklist', true, (cont) => {
+      const listContainer = el('div', { class: 'details-content-list' });
+      
+      const normalizedChecklist = (task.checklist || []).map(item => {
+        if (typeof item === 'string') return { id: generateId('chk'), text: item, completed: false, assigneeId: null, assigneeName: null, dependsOn: null, timeLogs: [] };
+        return item;
+      });
 
-    if (normalizedChecklist.length === 0) {
-      taskListEl.appendChild(el('div', { text: 'No checklist items for this task.', style: 'font-size:0.8125rem;color:var(--color-text-muted);font-style:italic;' }));
-    } else {
-      normalizedChecklist.forEach((item, idx) => {
-        const blocked = isChecklistBlocked(item, normalizedChecklist);
-        const prereq = normalizedChecklist.find(c => c.id === item.dependsOn);
-        const itemRow = el('div', { class: 'side-pane-task-item' + (blocked ? ' locked' : '') });
-        
-        const cb = el('input', { type: 'checkbox', style: 'cursor: pointer;' });
-        cb.checked = !!item.completed;
-        cb.disabled = blocked;
-        
-        cb.addEventListener('change', () => {
-          const now = new Date().toISOString();
-          if (cb.checked) {
-            item.completed = true;
-          } else {
-            item.completed = false;
-            normalizedChecklist.forEach(other => {
-              if (other.dependsOn === item.id) other.completed = false;
+      const renderChecklist = () => {
+        listContainer.innerHTML = '';
+        if (normalizedChecklist.length === 0) {
+          listContainer.appendChild(el('div', { class: 'empty-state', text: 'No checklist items.' }));
+        } else {
+          normalizedChecklist.forEach((item, idx) => {
+            const blocked = isChecklistBlocked(item, normalizedChecklist);
+            const prereq = normalizedChecklist.find(c => c.id === item.dependsOn);
+            const row = el('div', { class: 'checklist-item' + (blocked ? ' locked' : '') });
+            
+            const cb = el('input', { type: 'checkbox' });
+            cb.checked = !!item.completed;
+            cb.disabled = blocked;
+            
+            cb.addEventListener('change', () => {
+              const now = new Date().toISOString();
+              if (cb.checked) {
+                item.completed = true;
+              } else {
+                item.completed = false;
+                normalizedChecklist.forEach(other => {
+                  if (other.dependsOn === item.id) other.completed = false;
+                });
+              }
+              DB.update('tasks', task.id, { checklist: normalizedChecklist, updatedAt: now });
+              this.showTaskSidePane(taskId, triggerElement);
+              App.handleRoute(); // Refresh background
             });
-          }
-          DB.update('tasks', task.id, { checklist: normalizedChecklist, updatedAt: now });
-          this.showTaskSidePane(taskId, triggerElement);
-          App.handleRoute(); // Refresh background
-        });
 
-        const textValue = blocked ? ('🔒 Waiting for: ' + (prereq ? prereq.text : 'Unknown')) : item.text;
-        const labelEl = el('span', { 
-          class: `side-pane-task-name ${item.completed ? 'completed' : ''}`, 
-          text: textValue 
-        });
-        
-        itemRow.appendChild(cb);
-        itemRow.appendChild(labelEl);
-        
-        if (item.assigneeName) {
-          itemRow.appendChild(el('span', { 
-            class: 'badge badge-neutral', 
-            text: item.assigneeName, 
-            style: 'font-size: 10px; margin-left: auto;' 
-          }));
+            const textValue = blocked ? ('🔒 Waiting for: ' + (prereq ? prereq.text : 'Unknown')) : item.text;
+            const textWrap = el('div', { class: 'checklist-text' });
+            textWrap.appendChild(el('span', { text: textValue, class: item.completed ? 'completed' : '' }));
+            row.appendChild(cb);
+            row.appendChild(textWrap);
+
+            const assigneeDropdown = this.createGroundWorkerDropdown({
+              selectedGroundWorkerName: item.assigneeName,
+              placeholder: 'Assign...',
+              maxWidth: '120px',
+              className: 'checklist-assignee-dropdown',
+              priorityNames: getTaskAllAssigneeNames(task),
+              onChange: ({ assigneeName }) => {
+                item.assigneeId = null;
+                item.assigneeName = assigneeName || null;
+                DB.update('tasks', task.id, { checklist: normalizedChecklist, updatedAt: new Date().toISOString() });
+                this.showTaskSidePane(taskId, triggerElement);
+                App.handleRoute();
+              }
+            });
+            row.appendChild(assigneeDropdown);
+
+            const itemHours = getChecklistItemTotalHours(item);
+            const timePill = el('span', { class: 'hours-pill', text: itemHours + 'h' });
+            row.appendChild(timePill);
+
+            const actionsDiv = el('div', { style: 'display:flex; gap: 4px;' });
+            const logBtn = el('button', { type: 'button', class: 'btn btn-secondary btn-xs', text: 'Log' });
+            logBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.showAddTimeLogModal(task.id, item.id);
+            });
+            actionsDiv.appendChild(logBtn);
+
+            const delBtn = el('button', { type: 'button', class: 'btn btn-ghost btn-xs', text: '×', style: 'color:var(--color-text-muted); font-size: 14px;' });
+            delBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (!item.timeLogs || item.timeLogs.length === 0) {
+                normalizedChecklist.splice(idx, 1);
+                DB.update('tasks', task.id, { checklist: normalizedChecklist, updatedAt: new Date().toISOString() });
+                this.showTaskSidePane(taskId, triggerElement);
+                App.handleRoute();
+              } else {
+                const content = el('div');
+                content.appendChild(el('p', { text: `This item has ${item.timeLogs.length} logged time record(s). Choose how to proceed:` }));
+                const actions = el('div', { class: 'checklist-delete-modal-actions', style: 'display:flex; gap:8px; margin-top:12px;' });
+                const reassignBtn = el('button', { type: 'button', class: 'btn btn-primary btn-sm', text: 'Reassign to task' });
+                const deleteAllBtn = el('button', { type: 'button', class: 'btn btn-danger btn-sm', text: 'Delete logs & item' });
+                actions.appendChild(reassignBtn);
+                actions.appendChild(deleteAllBtn);
+                content.appendChild(actions);
+                
+                const overlay = this.showModal('Delete Checklist Item', content, null);
+                
+                reassignBtn.addEventListener('click', () => {
+                  overlay.remove();
+                  const tObj = DB.getById('tasks', task.id) || task;
+                  const logsToMove = (item.timeLogs || []).map(l => ({ ...l, checklistItemId: null }));
+                  tObj.timeLogs = [...(tObj.timeLogs || []), ...logsToMove];
+                  tObj.checklist = (tObj.checklist || []).filter(c => c.id !== item.id);
+                  DB.update('tasks', tObj.id, { checklist: tObj.checklist, timeLogs: tObj.timeLogs, updatedAt: new Date().toISOString() });
+                  this.showTaskSidePane(taskId, triggerElement);
+                  App.handleRoute();
+                });
+                
+                deleteAllBtn.addEventListener('click', () => {
+                  overlay.remove();
+                  const tObj = DB.getById('tasks', task.id) || task;
+                  tObj.checklist = (tObj.checklist || []).filter(c => c.id !== item.id);
+                  DB.update('tasks', tObj.id, { checklist: tObj.checklist, updatedAt: new Date().toISOString() });
+                  this.showTaskSidePane(taskId, triggerElement);
+                  App.handleRoute();
+                });
+              }
+            });
+            actionsDiv.appendChild(delBtn);
+            row.appendChild(actionsDiv);
+
+            listContainer.appendChild(row);
+          });
         }
-        
-        taskListEl.appendChild(itemRow);
-      });
-    }
-    paneContent.appendChild(tasksSec);
-
-    // Comments Section
-    const commentsSec = el('div', { class: 'side-pane-section' }, [
-      el('h4', { class: 'side-pane-section-title', text: 'Comments' })
-    ]);
-
-    const commentsList = el('div', { class: 'side-pane-task-list', style: 'margin-bottom: 12px;' });
-    const comments = task.comments || [];
-    if (comments.length === 0) {
-      commentsList.appendChild(el('div', { text: 'No comments yet.', style: 'font-size:0.8125rem;color:var(--color-text-muted);font-style:italic;' }));
-    } else {
-      comments.forEach(c => {
-        const u = DB.getById('users', c.userId);
-        const uName = u ? u.name : 'Unknown User';
-        const commentItem = el('div', { 
-          style: 'padding: 8px; border-bottom: 1px solid var(--color-border); font-size: 0.8125rem;' 
-        }, [
-          el('div', { style: 'font-weight: 600; color: var(--color-text); margin-bottom: 2px;' }, [
-            el('span', { text: uName }),
-            el('span', { text: ` • ${formatDate(c.date)}`, style: 'font-size: 10px; color: var(--color-text-muted); font-weight: normal;' })
-          ]),
-          el('div', { text: c.comment, style: 'color: var(--color-text-muted); line-height: 1.4;' })
-        ]);
-        commentsList.appendChild(commentItem);
-      });
-    }
-    commentsSec.appendChild(commentsList);
-
-    // Comment Form
-    const commentForm = el('form', { class: 'form-stacked' });
-    const textarea = el('textarea', { 
-      name: 'commentText', 
-      rows: 2, 
-      required: true, 
-      placeholder: 'Add a comment...', 
-      style: 'width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 10px; font-size: 0.8125rem; margin-bottom: 6px; font-family: inherit;' 
-    });
-    const submitBtn = el('button', { 
-      type: 'submit', 
-      class: 'btn btn-primary btn-sm', 
-      text: 'Send',
-      style: 'padding: 4px 12px; font-size: 0.75rem; border-radius: 4px;' 
-    });
-    commentForm.appendChild(textarea);
-    commentForm.appendChild(submitBtn);
-
-    commentForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = textarea.value.trim();
-      if (!text) return;
-      const entry = {
-        userId: Auth.user.id,
-        date: new Date().toISOString(),
-        comment: text
       };
-      const updatedComments = [...comments, entry];
-      DB.update('tasks', task.id, { comments: updatedComments, updatedAt: new Date().toISOString() });
-      this.showTaskSidePane(taskId, triggerElement);
-      App.handleRoute(); // Refresh background
+
+      cont.appendChild(listContainer);
+
+      const addChecklistRow = el('div', { class: 'add-checklist', style: 'margin-top: 12px; display: flex; gap: 8px;' });
+      const newItemInput = el('input', { type: 'text', placeholder: 'Add sub-task...', class: 'form-control', style: 'flex: 1;' });
+      
+      const prereqSelect = el('select', { class: 'form-select', style: 'max-width: 140px;' });
+      const populatePrereqSelect = () => {
+        prereqSelect.innerHTML = '';
+        prereqSelect.appendChild(el('option', { value: '', text: '— No Dependency —' }));
+        normalizedChecklist.forEach(item => {
+          prereqSelect.appendChild(el('option', { value: item.id, text: item.text }));
+        });
+      };
+      populatePrereqSelect();
+
+      const addItemBtn = el('button', { type: 'button', class: 'btn btn-primary btn-sm', text: 'Add' });
+      addItemBtn.addEventListener('click', () => {
+        const val = newItemInput.value.trim();
+        if (!val) return;
+        const prereqId = prereqSelect.value || null;
+        normalizedChecklist.push({ id: generateId('chk'), text: val, completed: false, assigneeId: null, assigneeName: null, dependsOn: prereqId, timeLogs: [] });
+        DB.update('tasks', task.id, { checklist: normalizedChecklist, updatedAt: new Date().toISOString() });
+        this.showTaskSidePane(taskId, triggerElement);
+        App.handleRoute();
+      });
+
+      addChecklistRow.appendChild(newItemInput);
+      addChecklistRow.appendChild(prereqSelect);
+      addChecklistRow.appendChild(addItemBtn);
+      cont.appendChild(addChecklistRow);
+
+      renderChecklist();
     });
-    commentsSec.appendChild(commentForm);
-    paneContent.appendChild(commentsSec);
+    paneContent.appendChild(checklistHeaderToggle);
+    paneContent.appendChild(checklistContentToggle);
+
+    // 3. Supporting Files / Documents Collapsible Section
+    const [docsHeaderToggle, docsContentToggle] = createCollapsibleSection('Supporting Files', false, (cont) => {
+      const docHeaderActions = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;' });
+      const docCount = (task.taskDocuments || []).length;
+      docHeaderActions.appendChild(el('span', { text: `${docCount} attached files`, style: 'font-size: 0.8125rem; color: var(--color-text-muted);' }));
+      
+      const isDocStaff = Auth.user?.name?.toLowerCase().includes('documentation') ||
+                         Auth.user?.email?.toLowerCase().startsWith('docs@');
+      const isArchived = wr && (wr.status === 'Completed' || wr.status === 'Cancelled');
+
+      if (isDocStaff && !isArchived) {
+        const addDocBtn = el('button', { class: 'btn btn-primary btn-xs', text: '+ Upload File' });
+        addDocBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.showAddDocumentModal(task.id);
+        });
+        docHeaderActions.appendChild(addDocBtn);
+      }
+      cont.appendChild(docHeaderActions);
+
+      const docsList = el('div', { class: 'details-content-list' });
+      if ((task.taskDocuments || []).length === 0) {
+        docsList.appendChild(el('div', { class: 'empty-state', text: 'No documents attached.', style: 'margin-bottom: 8px;' }));
+      } else {
+        const isAdmin = Auth.user.role === 'Admin';
+        task.taskDocuments.forEach((d, dIdx) => {
+          const item = el('div', { class: 'detail-item-v2', style: 'display:flex; justify-content:space-between; align-items:center; padding: 8px 0; border-bottom: 1px solid var(--color-border);' });
+          const leftSide = el('div', { style: 'display:flex; flex-direction:column; gap: 2px;' });
+          const fName = d.fileName || d.filename;
+
+          if (d.isFigma) {
+            const figmaLink = el('a', {
+              href: d.figmaUrl,
+              target: '_blank',
+              style: 'color: #a855f7; font-weight:600; text-decoration:underline; cursor:pointer; font-size: 0.8125rem; display: flex; align-items: center; gap: 6px;'
+            });
+            figmaLink.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H12v5H7.5A2.5 2.5 0 0 1 5 5.5z"></path><path d="M12 3h4.5A2.5 2.5 0 0 1 19 5.5 2.5 2.5 0 0 1 16.5 8H12V3z"></path><path d="M5 12.5A2.5 2.5 0 0 1 7.5 10H12v5H7.5A2.5 2.5 0 0 1 5 12.5z"></path><path d="M12 10h4.5a2.5 2.5 0 0 1 0 5H12v-5z"></path><path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H12v5H7.5A2.5 2.5 0 0 1 5 19.5z"></path></svg>
+              <span>${fName}</span>
+            `;
+            leftSide.appendChild(figmaLink);
+          } else if (d.isGoogleDrive) {
+            const driveLink = el('span', {
+              style: 'color: #22c55e; font-weight:600; font-size: 0.8125rem; display: flex; align-items: center; gap: 6px;'
+            });
+            driveLink.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #22c55e;"><path d="M2.5 17h19M4.5 14l3.5-6h8l3.5 6M9 9h6M12 3v3"></path></svg>
+              <span>${fName} (Google Drive)</span>
+            `;
+            leftSide.appendChild(driveLink);
+          } else {
+            if (isAdmin) {
+              const dmsDoc = DB.getWhere('documents', doc => (doc.fileName === fName) && doc.workRequestId === wr.id)[0];
+              if (dmsDoc && dmsDoc.dataUrl) {
+                const link = el('a', {
+                  href: '#',
+                  text: '📎 ' + fName,
+                  style: 'color:var(--color-primary); font-weight:600; text-decoration:underline; cursor:pointer; font-size: 0.8125rem;'
+                });
+                link.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const win = window.open();
+                  if (win) win.document.write('<iframe src="' + dmsDoc.dataUrl + '" frameborder="0" style="position:fixed; top:0; left:0; bottom:0; right:0; width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;" allowfullscreen></iframe>');
+                });
+                leftSide.appendChild(link);
+              } else {
+                leftSide.appendChild(el('span', { text: '📎 ' + fName, style: 'font-size: 0.8125rem; font-weight: 500;' }));
+              }
+            } else {
+              leftSide.appendChild(el('span', { text: '📎 ' + fName, style: 'font-size: 0.8125rem; font-weight: 500;' }));
+            }
+          }
+          leftSide.appendChild(el('span', { text: `Uploaded: ${formatDate(d.uploadDate)}`, style: 'font-size: 10px; color: var(--color-text-muted);' }));
+          item.appendChild(leftSide);
+
+          if (isDocStaff || isAdmin) {
+            const delBtn = el('button', { class: 'btn btn-ghost btn-xs', text: '×', style: 'color:var(--color-danger); font-size:1.2rem; padding:0 4px;' });
+            delBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.showConfirm('Confirm Removal', `Are you sure you want to remove "${fName}" from this task?`, () => {
+                const updatedTaskDocs = task.taskDocuments.filter((_, i) => i !== dIdx);
+                DB.update('tasks', task.id, { taskDocuments: updatedTaskDocs });
+                const dmsMatch = DB.getWhere('documents', doc => doc.fileName === fName && doc.workRequestId === wr.id)[0];
+                if (dmsMatch) DB.delete('documents', dmsMatch.id);
+                this.showTaskSidePane(taskId, triggerElement);
+                App.handleRoute();
+              }, 'danger');
+            });
+            item.appendChild(delBtn);
+          }
+          docsList.appendChild(item);
+        });
+      }
+      cont.appendChild(docsList);
+
+      // Notion-style Embed Options
+      if (!isArchived) {
+        const embedContainer = el('div', { class: 'embed-options', style: 'margin-top: 16px; display: flex; flex-direction: column; gap: 8px;' });
+        
+        // 1. Embed a PDF
+        const pdfOpt = el('button', { class: 'notion-embed-option', type: 'button' });
+        pdfOpt.innerHTML = `
+          <span class="notion-embed-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #ef4444;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          </span>
+          <span style="flex: 1; text-align: left;">Embed a PDF</span>
+        `;
+        pdfOpt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.showAddDocumentModal(task.id);
+        });
+        
+        // 2. Connect Google Drive
+        const gdOpt = el('button', { class: 'notion-embed-option', type: 'button' });
+        gdOpt.innerHTML = `
+          <span class="notion-embed-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #22c55e;"><path d="M2.5 17h19M4.5 14l3.5-6h8l3.5 6M9 9h6M12 3v3"></path></svg>
+          </span>
+          <span style="flex: 1; text-align: left;">Connect Google Drive to Notion to embed a file</span>
+        `;
+        gdOpt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.showGoogleDriveChooser(task.id);
+        });
+
+        // 3. Embed Figma
+        const figmaOpt = el('button', { class: 'notion-embed-option', type: 'button' });
+        figmaOpt.innerHTML = `
+          <span class="notion-embed-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H12v5H7.5A2.5 2.5 0 0 1 5 5.5z"></path><path d="M12 3h4.5A2.5 2.5 0 0 1 19 5.5 2.5 2.5 0 0 1 16.5 8H12V3z"></path><path d="M5 12.5A2.5 2.5 0 0 1 7.5 10H12v5H7.5A2.5 2.5 0 0 1 5 12.5z"></path><path d="M12 10h4.5a2.5 2.5 0 0 1 0 5H12v-5z"></path><path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H12v5H7.5A2.5 2.5 0 0 1 5 19.5z"></path></svg>
+          </span>
+          <span style="flex: 1; text-align: left;">Embed Figma</span>
+        `;
+        figmaOpt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.showFigmaEmbedModal(task.id);
+        });
+
+        embedContainer.appendChild(pdfOpt);
+        embedContainer.appendChild(gdOpt);
+        embedContainer.appendChild(figmaOpt);
+        cont.appendChild(embedContainer);
+      }
+    });
+    paneContent.appendChild(docsHeaderToggle);
+    paneContent.appendChild(docsContentToggle);
+
+    // 4. Time Log History Collapsible Section
+    const [timeHeaderToggle, timeContentToggle] = createCollapsibleSection('Time Log History', false, (cont) => {
+      const timeHeaderActions = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;' });
+      const totalHours = getTaskTotalHours(task);
+      timeHeaderActions.appendChild(el('span', { text: `Total: ${totalHours} hrs`, style: 'font-size: 0.8125rem; color: var(--color-text-muted);' }));
+      
+      const isArchived = wr && (wr.status === 'Completed' || wr.status === 'Cancelled');
+      if (!isArchived) {
+        const logTimeBtn = el('button', { class: 'btn btn-primary btn-xs', text: '+ Log Time' });
+        logTimeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.showAddTimeLogModal(task.id);
+        });
+        timeHeaderActions.appendChild(logTimeBtn);
+      }
+      cont.appendChild(timeHeaderActions);
+
+      const timeList = el('div', { class: 'details-content-list' });
+      const logs = task.timeLogs || [];
+      const checklistLogGroups = [];
+      (task.checklist || []).forEach(item => {
+        if (item.timeLogs && item.timeLogs.length > 0) checklistLogGroups.push({ item, logs: item.timeLogs });
+      });
+
+      if (logs.length === 0 && checklistLogGroups.length === 0) {
+        timeList.appendChild(el('div', { class: 'empty-state', text: 'No logs recorded.' }));
+      } else {
+        const buildTimeLogEntry = (l, subtaskName = null) => {
+          const [y, m, d] = l.date.split('-').map(Number);
+          const logDate = new Date(y, m - 1, d);
+          const dateStr = logDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+          const workerLabel = l.workerName || (DB.getById('users', l.userId)?.name || l.userId || 'Unknown');
+          const noteText = l.note ? ` — ${l.note}` : '';
+          const subtaskContext = subtaskName ? ` [Sub-task: ${subtaskName}]` : '';
+
+          return el('div', { 
+            class: 'history-item', 
+            style: 'display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: 0.8125rem;' 
+          }, [
+            el('div', {}, [
+              el('strong', { text: workerLabel, style: 'color: var(--color-text);' }),
+              el('span', { text: subtaskContext, style: 'color: var(--color-primary); font-size: 11px; font-weight: 600;' }),
+              el('span', { text: noteText, style: 'color: var(--color-text-muted);' }),
+              el('div', { class: 'history-meta', text: `${dateStr} • ${l.startTime}–${l.endTime}`, style: 'font-size: 10px; color: var(--color-text-muted);' })
+            ]),
+            el('span', { class: 'font-mono', text: `${l.hours}h`, style: 'font-weight: 700; color: var(--color-text);' })
+          ]);
+        };
+
+        const taskLevelLogs = logs.filter(l => !l.checklistItemId);
+        if (taskLevelLogs.length > 0) {
+          const sorted = [...taskLevelLogs].sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
+          sorted.forEach(l => {
+            timeList.appendChild(buildTimeLogEntry(l));
+          });
+        }
+
+        checklistLogGroups.forEach(({ item, logs: itemLogs }) => {
+          const sorted = [...itemLogs].sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
+          sorted.forEach(l => {
+            timeList.appendChild(buildTimeLogEntry(l, item.text));
+          });
+        });
+      }
+      cont.appendChild(timeList);
+    });
+    paneContent.appendChild(timeHeaderToggle);
+    paneContent.appendChild(timeContentToggle);
+
+    // 5. Dependency Map Collapsible Section
+    const [depHeaderToggle, depContentToggle] = createCollapsibleSection('Dependency Map', false, (cont) => {
+      const depHeaderActions = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;' });
+      depHeaderActions.appendChild(el('span', { text: 'Blocking / Pre-requisites', style: 'font-size: 0.8125rem; color: var(--color-text-muted);' }));
+      
+      const isArchived = wr && (wr.status === 'Completed' || wr.status === 'Cancelled');
+      if (!isArchived) {
+        const editDepBtn = el('button', { class: 'btn btn-secondary btn-xs', text: 'Edit Dependencies' });
+        editDepBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.showEditTaskModal(task.id, () => {
+            this.showTaskSidePane(task.id, triggerElement);
+            App.handleRoute();
+          });
+        });
+        depHeaderActions.appendChild(editDepBtn);
+      }
+      cont.appendChild(depHeaderActions);
+
+      const depList = el('div', { class: 'dep-list', style: 'display: flex; flex-direction: column; gap: 8px;' });
+      const taskPreds = task.predecessors || [];
+      const checklistDeps = (task.checklist || []).filter(item => item.dependsOn);
+
+      if (taskPreds.length === 0 && checklistDeps.length === 0) {
+        depList.appendChild(el('div', { class: 'empty-state', text: 'No dependencies.' }));
+      } else {
+        taskPreds.forEach(pid => {
+          const pTask = DB.getById('tasks', pid);
+          const pStatus = pTask ? pTask.status : 'Unknown';
+          const pStatusColors = {
+            'Completed': 'var(--color-success)',
+            'In Progress': 'var(--color-warning)',
+            'Draft': '#6b6b6b',
+            'For Review': 'var(--color-primary)',
+            'Assigned': 'var(--color-primary)',
+            'Cancelled': 'var(--color-danger)'
+          };
+
+          const depItem = el('div', { 
+            class: 'dep-item', 
+            style: 'display: flex; align-items: center; gap: 8px; font-size: 0.8125rem;' 
+          });
+          depItem.appendChild(el('span', { text: pTask ? pTask.title : 'Unknown', style: 'font-weight: 600;' }));
+          
+          const statusBadge = el('span', { 
+            text: pStatus, 
+            class: 'badge',
+            style: `font-size: 9px; padding: 1px 6px; background-color: color-mix(in srgb, ${pStatusColors[pStatus] || '#94a3b8'}, transparent 85%); color: ${pStatusColors[pStatus] || '#475569'}; border: 1px solid color-mix(in srgb, ${pStatusColors[pStatus] || '#94a3b8'}, transparent 70%); border-radius: 4px;` 
+          });
+          depItem.appendChild(statusBadge);
+          
+          depItem.appendChild(el('span', { class: 'dep-arrow', text: '→', style: 'color: var(--color-text-muted);' }));
+          depItem.appendChild(el('span', { class: 'text-muted', text: task.title, style: 'color: var(--color-text-muted);' }));
+          depList.appendChild(depItem);
+        });
+
+        checklistDeps.forEach(item => {
+          const prereq = (task.checklist || []).find(c => c.id === item.dependsOn);
+          const pStatus = prereq && prereq.completed ? 'Completed' : 'Pending';
+
+          const depItem = el('div', { 
+            class: 'dep-item', 
+            style: 'display: flex; align-items: center; gap: 8px; font-size: 0.8125rem;' 
+          });
+          depItem.appendChild(el('span', { text: prereq ? prereq.text : 'Unknown', style: 'font-weight: 600;' }));
+          
+          const statusBadge = el('span', { 
+            text: pStatus, 
+            class: 'badge',
+            style: `font-size: 9px; padding: 1px 6px; background-color: color-mix(in srgb, ${pStatus === 'Completed' ? 'var(--color-success)' : 'var(--color-warning)'}, transparent 85%); color: ${pStatus === 'Completed' ? 'var(--color-success)' : 'var(--color-warning)'}; border: 1px solid color-mix(in srgb, ${pStatus === 'Completed' ? 'var(--color-success)' : 'var(--color-warning)'}, transparent 70%); border-radius: 4px;` 
+          });
+          depItem.appendChild(statusBadge);
+          
+          depItem.appendChild(el('span', { class: 'dep-arrow', text: '→', style: 'color: var(--color-text-muted);' }));
+          depItem.appendChild(el('span', { class: 'text-muted', text: `${task.title}: ${item.text}`, style: 'color: var(--color-text-muted);' }));
+          depList.appendChild(depItem);
+        });
+      }
+      cont.appendChild(depList);
+    });
+    paneContent.appendChild(depHeaderToggle);
+    paneContent.appendChild(depContentToggle);
 
     window.SidePaneInstance.recordId = task.id;
     window.SidePaneInstance.open({
@@ -1408,7 +1758,7 @@ const Workflow = {
       },
       triggerElement: triggerElement
     });
-  },
+  }
 
   statusBadge(status) {
     const map = {
@@ -4265,6 +4615,127 @@ const Workflow = {
         App.handleRoute();
       };
       reader.readAsDataURL(file);
+    });
+  },
+
+  showGoogleDriveChooser(taskId) {
+    const task = DB.getById('tasks', taskId);
+    if (!task) return;
+    
+    const driveFiles = [
+      { name: 'Operations_Handbook.pdf', size: '2.4 MB' },
+      { name: 'Q2_Strategy_Presentation.pdf', size: '5.1 MB' },
+      { name: 'WR_Vendor_Contracts.xlsx', size: '1.2 MB' },
+      { name: 'Client_Receipts_Archive.zip', size: '15.8 MB' }
+    ];
+    
+    const container = el('div', { style: 'display: flex; flex-direction: column; gap: 12px; padding: 8px;' });
+    container.appendChild(el('p', { text: 'Select a file from your connected Google Drive to embed:', style: 'font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 8px;' }));
+    
+    const list = el('div', { style: 'display: flex; flex-direction: column; gap: 8px;' });
+    driveFiles.forEach(f => {
+      const item = el('div', { 
+        style: 'display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; transition: all 0.15s ease;'
+      });
+      item.addEventListener('mouseenter', () => {
+        item.style.borderColor = 'var(--color-primary)';
+        item.style.background = 'color-mix(in srgb, var(--color-primary), transparent 95%)';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.borderColor = 'var(--color-border)';
+        item.style.background = 'var(--color-bg)';
+      });
+      
+      const fileLeft = el('div', { style: 'display: flex; align-items: center; gap: 10px;' });
+      fileLeft.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color: #22c55e;"><path d="M2.5 17h19M4.5 14l3.5-6h8l3.5 6M9 9h6M12 3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span style="font-weight: 500; font-size: 0.875rem; color: var(--color-text);">${f.name}</span>
+      `;
+      item.appendChild(fileLeft);
+      item.appendChild(el('span', { text: f.size, style: 'font-size: 0.75rem; color: var(--color-text-muted);' }));
+      
+      item.addEventListener('click', () => {
+        const now = new Date().toISOString();
+        const entry = {
+          fileName: f.name,
+          uploadDate: now.slice(0, 10),
+          uploaderId: Auth.user.id,
+          isGoogleDrive: true
+        };
+        const updatedDocs = [...(task.taskDocuments || []), entry];
+        DB.update('tasks', taskId, { taskDocuments: updatedDocs, updatedAt: now });
+        
+        const dmsRecord = {
+          id: generateId('doc'),
+          fileName: f.name,
+          workRequestId: task.workRequestId,
+          document_type: 'original_scan',
+          category: 'Requirement Docs',
+          uploader: Auth.user.id,
+          uploadDate: now,
+          description: `Embedded via Google Drive: ${f.name}`,
+          handover_log: [],
+          entity: Auth.activeEntity,
+          dataUrl: 'mock-google-drive-data-url',
+          versions: [],
+          comments: [],
+          documentLifecycle: 'collected',
+          scannedBy: '',
+          envelopeId: '',
+          storedLocation: ''
+        };
+        DB.insert('documents', dmsRecord);
+        
+        overlay.remove();
+        this.showTaskSidePane(taskId, null);
+        App.handleRoute();
+      });
+      list.appendChild(item);
+    });
+    
+    container.appendChild(list);
+    const overlay = this.showModal('Google Drive File Chooser', container, null);
+  },
+
+  showFigmaEmbedModal(taskId) {
+    const task = DB.getById('tasks', taskId);
+    if (!task) return;
+    
+    const container = el('div', { style: 'display: flex; flex-direction: column; gap: 12px; padding: 8px;' });
+    container.appendChild(el('label', { text: 'Figma File URL:', style: 'font-weight: 500; font-size: 0.875rem;' }));
+    const input = el('input', { type: 'text', placeholder: 'https://www.figma.com/file/...', class: 'form-control', style: 'width: 100%;' });
+    container.appendChild(input);
+    
+    const btnRow = el('div', { style: 'display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;' });
+    const cancelBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Cancel' });
+    const submitBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Embed' });
+    
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(submitBtn);
+    container.appendChild(btnRow);
+    
+    const overlay = this.showModal('Embed Figma File', container, null);
+    
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    submitBtn.addEventListener('click', () => {
+      const url = input.value.trim();
+      if (!url) return;
+      
+      const now = new Date().toISOString();
+      const entry = {
+        fileName: url.startsWith('http') ? 'Figma Design File' : url,
+        uploadDate: now.slice(0, 10),
+        uploaderId: Auth.user.id,
+        isFigma: true,
+        figmaUrl: url
+      };
+      
+      const updatedDocs = [...(task.taskDocuments || []), entry];
+      DB.update('tasks', taskId, { taskDocuments: updatedDocs, updatedAt: now });
+      
+      overlay.remove();
+      this.showTaskSidePane(taskId, null);
+      App.handleRoute();
     });
   },
 

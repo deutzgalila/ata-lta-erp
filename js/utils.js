@@ -469,6 +469,16 @@ class SidePane {
         this.close();
       }
     });
+
+    // Close when clicking outside (since overlay is hidden/non-blocking)
+    document.addEventListener('click', (e) => {
+      if (this.isOpen()) {
+        const clickedTrigger = e.target.closest('.board-card') || e.target.closest('.list-item') || e.target.closest('.task-row') || e.target.closest('.status-select') || e.target.closest('.modal-overlay') || e.target.closest('.modal') || e.target.closest('.searchable-dropdown') || e.target.closest('.mdp-wrapper') || e.target.closest('.mtp-wrapper');
+        if (!this.pane.contains(e.target) && !clickedTrigger) {
+          this.close();
+        }
+      }
+    });
   }
 
   isOpen() {
@@ -534,7 +544,7 @@ class SidePane {
     requestAnimationFrame(() => {
       this.overlay.classList.add('open');
       this.pane.classList.add('open');
-      document.body.style.overflow = 'hidden';
+      // Do NOT set document.body.style.overflow = 'hidden' to match Notion's scrollable canvas behavior
     });
   }
 
@@ -543,7 +553,7 @@ class SidePane {
     
     if (this.overlay) this.overlay.classList.remove('open');
     if (this.pane) this.pane.classList.remove('open');
-    document.body.style.overflow = '';
+    // Do NOT reset document.body.style.overflow
     
     if (this.activeElement) {
       this.activeElement.classList.remove('side-pane-active');

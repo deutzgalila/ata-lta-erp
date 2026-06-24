@@ -1342,7 +1342,7 @@ const Workflow = {
       const titleBar = el('div', { class: 'page-title-bar-v2' });
       const h1 = el('h1', { class: 'breadcrumb-h1' });
       const opLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Operations' });
-      opLink.addEventListener('click', () => { this.view = 'list'; this.detailWrId = null; App.handleRoute(); });
+      opLink.addEventListener('click', () => { location.hash = '#operations'; });
       h1.appendChild(opLink);
       h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
       h1.appendChild(document.createTextNode(wr.title || 'Untitled Work Request'));
@@ -1393,7 +1393,7 @@ const Workflow = {
         actions.appendChild(cancelBtn);
       }
       const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Work Requests' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; this.detailWrId = null; App.handleRoute(); });
+      backBtn.addEventListener('click', () => { location.hash = '#operations'; });
       actions.appendChild(backBtn);
       titleBar.appendChild(actions);
       container.appendChild(titleBar);
@@ -1632,7 +1632,7 @@ const Workflow = {
             const isAssignedToStagedTasks = tasks.some(t => t.assigneeId === Auth.user.id || t.assigneeName === Auth.user.name || (t.coAssignees || []).includes(Auth.user.name));
             return r.submittedBy === Auth.user.id || r.assignedTo === Auth.user.id || isAssignedToStagedTasks;
           }
-          return myWrIds.has(r.id) || r.assignedTo === Auth.user.id;
+          return myWrIds.has(r.id) || r.assignedTo === Auth.user.id || r.requestedBy === Auth.user.id;
         });
       }
       if (priorityFilter.value) wrs = wrs.filter(r => r.priority === priorityFilter.value);
@@ -1730,13 +1730,13 @@ const Workflow = {
       tr.appendChild(el('td', { text: assignedUser?.name || '—' }));
       const tdAct = el('td');
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailWrId = wr.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#operations/detail/' + wr.id; });
       tdAct.appendChild(viewBtn);
       
       if (!wr.isPendingApproval) {
         if (canEdit && wr.status === 'Draft') {
           const editBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Edit' });
-          editBtn.addEventListener('click', (e) => { e.stopPropagation(); this.view = 'form'; this.editingId = wr.id; App.handleRoute(); });
+          editBtn.addEventListener('click', (e) => { e.stopPropagation(); location.hash = '#operations/form/' + wr.id; });
           tdAct.appendChild(editBtn);
         }
         if (canEdit && wr.status !== 'Completed' && wr.status !== 'Cancelled') {
@@ -1827,7 +1827,7 @@ const Workflow = {
 
         const card = el('div', { class: 'board-card board-card-v2' });
         card.style.borderLeftColor = colColor;
-        card.addEventListener('click', () => { this.view = 'detail'; this.detailWrId = wr.id; App.handleRoute(); });
+        card.addEventListener('click', () => { location.hash = '#operations/detail/' + wr.id; });
 
         const transition = this.getPhaseTransitionStatus(wr.id);
 
@@ -2004,7 +2004,7 @@ const Workflow = {
         });
         row.appendChild(cancelBtn);
       }
-      row.addEventListener('click', () => { this.view = 'detail'; this.detailWrId = wr.id; App.handleRoute(); });
+      row.addEventListener('click', () => { location.hash = '#operations/detail/' + wr.id; });
       list.appendChild(row);
     });
     container.appendChild(list);
@@ -3095,7 +3095,7 @@ const Workflow = {
     }
 
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-secondary', text: 'Cancel' });
-    cancelBtn.addEventListener('click', () => { this.view = 'list'; this.editingId = null; App.handleRoute(); });
+    cancelBtn.addEventListener('click', () => { location.hash = '#operations'; });
     topActions.appendChild(cancelBtn);
     headerBar.appendChild(topActions);
     container.appendChild(headerBar);
@@ -3686,6 +3686,8 @@ const Workflow = {
     } else {
       record.id = this.editingId;
       const existingWr = DB.getById('workRequests', this.editingId);
+      record.requestedBy = existingWr?.requestedBy || null;
+      record.createdAt = existingWr?.createdAt || now;
       record.linkedInvoiceId = existingWr?.linkedInvoiceId || null;
       record.linkedDisbursementIds = existingWr?.linkedDisbursementIds || [];
       record.linkedTransmittalIds = existingWr?.linkedTransmittalIds || [];
@@ -3741,9 +3743,7 @@ const Workflow = {
       });
     }
 
-    this.view = 'list';
-    this.editingId = null;
-    App.handleRoute();
+    location.hash = '#operations';
   },
 
   /**
@@ -4973,12 +4973,12 @@ const Workflow = {
         if (linkedInv) {
           const badgeText = '📄 ' + linkedInv.invoiceNumber + (linkedInv.status === 'Pending' ? ' (Pending)' : '');
           const badge = el('span', { class: 'badge badge-info', text: badgeText, style: 'cursor:pointer; font-size:10px;' });
-          badge.addEventListener('click', (e) => { e.stopPropagation(); Billing.detailId = linkedInv.id; Billing.view = 'detail'; location.hash = '#billing'; App.handleRoute(); });
+          badge.addEventListener('click', (e) => { e.stopPropagation(); location.hash = '#billing/detail/' + linkedInv.id; });
           linkedWrap.appendChild(badge);
         }
         linkedDisb.forEach(d => {
           const badge = el('span', { class: 'badge badge-warning', text: '💸 ' + d.category, style: 'cursor:pointer; font-size:10px;' });
-          badge.addEventListener('click', (e) => { e.stopPropagation(); Disbursement.detailId = d.id; Disbursement.view = 'detail'; App.handleRoute(); });
+          badge.addEventListener('click', (e) => { e.stopPropagation(); location.hash = '#disbursement/detail/' + d.id; });
           linkedWrap.appendChild(badge);
         });
         
@@ -5939,7 +5939,7 @@ const Workflow = {
         const item = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; background: var(--bg); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border);' });
         const left = el('div');
         const link = el('a', { href: 'javascript:void(0)', text: inv.invoiceNumber, style: 'color: var(--accent); font-weight: 600; text-decoration: none;' });
-        link.addEventListener('click', (e) => { e.stopPropagation(); Billing.detailId = inv.id; Billing.view = 'detail'; location.hash = '#billing'; App.handleRoute(); });
+        link.addEventListener('click', (e) => { e.stopPropagation(); location.hash = '#billing/detail/' + inv.id; });
         link.addEventListener('mouseenter', () => { link.style.textDecoration = 'underline'; });
         link.addEventListener('mouseleave', () => { link.style.textDecoration = 'none'; });
         left.appendChild(link);
@@ -5986,7 +5986,7 @@ const Workflow = {
         const item = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; background: var(--bg); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border);' });
         const left = el('div');
         const link = el('a', { href: 'javascript:void(0)', text: d.category, style: 'color: var(--accent); font-weight: 600; text-decoration: none;' });
-        link.addEventListener('click', (e) => { e.stopPropagation(); Disbursement.detailId = d.id; Disbursement.view = 'detail'; location.hash = '#disbursement'; App.handleRoute(); });
+        link.addEventListener('click', (e) => { e.stopPropagation(); location.hash = '#disbursement/detail/' + d.id; });
         link.addEventListener('mouseenter', () => { link.style.textDecoration = 'underline'; });
         link.addEventListener('mouseleave', () => { link.style.textDecoration = 'none'; });
         left.appendChild(link);
@@ -6023,7 +6023,7 @@ const Workflow = {
         const item = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; background: var(--bg); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border);' });
         const left = el('div');
         const link = el('a', { href: 'javascript:void(0)', text: t.trackingNumber, style: 'color: var(--accent); font-weight: 600; text-decoration: none;' });
-        link.addEventListener('click', (e) => { e.stopPropagation(); Transmittal.detailId = t.id; Transmittal.view = 'detail'; location.hash = '#transmittal'; App.handleRoute(); });
+        link.addEventListener('click', (e) => { e.stopPropagation(); location.hash = '#transmittal/detail/' + t.id; });
         link.addEventListener('mouseenter', () => { link.style.textDecoration = 'underline'; });
         link.addEventListener('mouseleave', () => { link.style.textDecoration = 'none'; });
         left.appendChild(link);
@@ -8044,7 +8044,7 @@ const Workflow = {
       tr.appendChild(el('td', { text: formatDate(wr.updatedAt) }));
       const tdAct = el('td');
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailWrId = wr.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#operations/detail/' + wr.id; });
       tdAct.appendChild(viewBtn);
       if (canApprove) {
         const restoreBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Restore', style: 'margin-left:4px;' });
@@ -8109,8 +8109,6 @@ const Workflow = {
       });
     });
 
-    this.view = 'detail';
-    this.detailWrId = workRequest.id;
-    App.handleRoute();
+    location.hash = '#operations/detail/' + workRequest.id;
   }
 };

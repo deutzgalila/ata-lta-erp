@@ -39,8 +39,17 @@ const Billing = {
  
       const actions = el('div', { class: 'title-bar-actions' });
       if (inv && inv.status !== 'Draft' && inv.status !== 'Pending') {
+        const noLogoLabel = el('label', { style: 'margin-right:12px; font-size:0.8125rem; display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--color-text-muted);' });
+        const noLogoCheckbox = el('input', { type: 'checkbox', id: 'print-no-logo' });
+        noLogoLabel.appendChild(noLogoCheckbox);
+        noLogoLabel.appendChild(document.createTextNode('No Logo (Generic)'));
+        actions.appendChild(noLogoLabel);
+
         const genInvBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Print Invoice', style: 'margin-right:8px;' });
-        genInvBtn.addEventListener('click', () => this.generateInvoice(inv));
+        genInvBtn.addEventListener('click', () => {
+          const noLogo = noLogoCheckbox.checked;
+          this.generateInvoice(inv, noLogo);
+        });
         actions.appendChild(genInvBtn);
         const genVouchBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Print Voucher (No Header)', style: 'margin-right:8px;' });
         genVouchBtn.addEventListener('click', () => this.generateVoucher(inv));
@@ -1484,7 +1493,7 @@ const Billing = {
     return container;
   },
 
-  generateInvoice(inv) {
+  generateInvoice(inv, noLogo = false) {
     const client = DB.getById('clients', inv.clientId);
     const entity = inv.entity || 'ATA';
     const w = window.open('', '_blank');
@@ -1492,51 +1501,370 @@ const Billing = {
     const d = w.document;
 
     const title = d.createElement('title');
-    title.textContent = 'Service Invoice ' + inv.invoiceNumber;
+    title.textContent = 'Statement ' + inv.invoiceNumber;
     d.head.appendChild(title);
 
     const style = d.createElement('style');
     style.textContent = `
       @page { size: A4; margin: 15mm 20mm; }
-      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; max-width: 210mm; margin: 0 auto; padding: 0; }
-      .doc-title { text-align: center; font-size: 16pt; font-weight: 700; letter-spacing: 4px; margin: 0 0 16px; text-transform: uppercase; }
-      .two-col { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
-      .col { flex: 1; }
-      .col h3 { font-size: 10pt; text-transform: uppercase; color: #64748b; margin: 0 0 4px; letter-spacing: 0.5px; }
-      .col p { margin: 2px 0; font-size: 10pt; }
-      .details-bar { display: flex; gap: 32px; margin-bottom: 20px; font-size: 10pt; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 4px; }
-      .details-bar span { flex: 1; }
-      .details-bar strong { color: #334155; }
-      table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
-      th { background: #f8fafc; border-bottom: 2px solid #1e293b; padding: 8px; text-align: left; font-weight: 600; text-transform: uppercase; font-size: 9pt; letter-spacing: 0.5px; }
-      td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
-      .num { text-align: right; }
-      .totals { margin-top: 16px; border-top: 2px solid #1e293b; padding-top: 12px; }
-      .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 10pt; }
-      .totals-row.grand { font-weight: 700; font-size: 12pt; border-top: 1px solid #cbd5e1; padding-top: 8px; margin-top: 4px; }
-      .vat-breakdown { background: #f8fafc; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 9pt; }
-      .vat-breakdown p { margin: 2px 0; }
-      .signature-row { display: flex; justify-content: space-between; margin-top: 48px; gap: 40px; }
-      .signature-box { flex: 1; text-align: center; }
-      .signature-box .line { border-top: 1px solid #1e293b; margin-top: 40px; padding-top: 4px; font-size: 9pt; }
-      .disclaimer { margin-top: 32px; padding: 10px; border: 2px solid #dc2626; color: #dc2626; font-size: 9pt; font-weight: 700; text-align: center; text-transform: uppercase; }
-      .pay-status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-      .pay-status.paid { background: #dcfce7; color: #166534; }
-      .pay-status.partial { background: #fef3c7; color: #92400e; }
-      .pay-status.unpaid { background: #fee2e2; color: #991b1b; }
-      .pay-summary { margin: 16px 0; }
-      .pay-summary h4 { margin: 0 0 12px; font-size: 10pt; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; }
-      .pay-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fff; }
-      .pay-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-      .pay-card-amt { font-weight: 700; font-size: 1.25rem; color: #1e293b; line-height: 1.2; }
-      .pay-card-date { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
-      .pay-card-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.3px; }
-      .pay-card-divider { height: 1px; background: #e2e8f0; margin: 0 0 12px; }
-      .pay-card-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.8125rem; padding: 3px 0; }
-      .pay-card-label { color: #94a3b8; font-weight: 500; }
-      .pay-card-value { color: #334155; font-weight: 600; text-align: right; }
-      .pay-card-notes { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 0.8125rem; color: #64748b; font-style: italic; line-height: 1.4; }
-      .footer { margin-top: 24px; font-size: 8pt; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #000; max-width: 210mm; margin: 0 auto; padding: 0; }
+      
+      /* Generic Header Styles */
+      .generic-header {
+        text-align: center;
+        margin-bottom: 5px;
+      }
+      .generic-company-name {
+        font-size: 15pt;
+        font-weight: 800;
+        color: #000;
+        letter-spacing: 0.5px;
+        font-family: 'Segoe UI', Arial, sans-serif;
+      }
+      .generic-title {
+        font-size: 20pt;
+        font-weight: 800;
+        letter-spacing: 2px;
+        color: #000;
+        margin-top: 5px;
+      }
+      .generic-header-divider {
+        border-bottom: 2px solid #000;
+        margin-bottom: 20px;
+      }
+
+      /* ATA Header Styles */
+      .header-container-ata {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+      }
+      .logo-area-ata {
+        display: flex;
+        align-items: center;
+        background: linear-gradient(90deg, #e0f2fe 0%, #e0f2fe 80%, transparent 100%);
+        padding: 6px 20px 6px 6px;
+        border-radius: 40px 0 0 40px;
+        width: 70%;
+      }
+      .logo-oval-ata {
+        width: 110px;
+        height: 65px;
+        background-color: #00A3E0;
+        border-radius: 50% / 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        margin-right: 15px;
+      }
+      .logo-oval-ata img {
+        width: 90%;
+        height: 90%;
+        object-fit: contain;
+      }
+      .company-name-ata {
+        font-size: 15pt;
+        font-weight: 800;
+        color: #002D62;
+        letter-spacing: 0.5px;
+        font-family: 'Arial Black', sans-serif;
+      }
+      .statement-title-ata {
+        font-size: 24pt;
+        font-weight: 800;
+        letter-spacing: 2px;
+        color: #000;
+      }
+      .header-divider-ata {
+        border-bottom: 2px solid #000;
+        margin-bottom: 20px;
+      }
+
+      /* LTA Header Styles */
+      .header-container-lta {
+        display: flex;
+        align-items: stretch;
+        height: 60px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 6px;
+      }
+      .logo-banner-lta {
+        display: flex;
+        align-items: center;
+        background-color: #007cc0;
+        color: white;
+        padding: 0 15px;
+        flex: 1;
+      }
+      .logo-img-lta {
+        height: 40px;
+        margin-right: 12px;
+      }
+      .company-name-lta {
+        font-size: 13pt;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .slanted-block-lta {
+        background-color: #1e293b;
+        color: white;
+        display: flex;
+        align-items: center;
+        padding: 0 20px 0 30px;
+        font-size: 13pt;
+        font-weight: 700;
+        clip-path: polygon(15px 0, 100% 0, 100% 100%, 0 100%);
+        margin-left: -15px;
+      }
+      .right-statement-lta {
+        display: flex;
+        align-items: center;
+        padding: 0 15px;
+        font-size: 20pt;
+        font-weight: 800;
+        color: #000;
+      }
+
+      /* Common Layout */
+      .two-col {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      .col-bill-to {
+        border: 1.5px solid #000;
+        padding: 10px;
+        width: 55%;
+      }
+      .bill-to-title {
+        font-size: 10pt;
+        font-weight: 700;
+        border-bottom: 1px solid #000;
+        padding-bottom: 4px;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+      .bill-to-content {
+        font-size: 10pt;
+        line-height: 1.4;
+      }
+      .bill-to-content p {
+        margin: 2px 0;
+      }
+      .col-details {
+        width: 40%;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+      }
+      .details-table {
+        border-collapse: collapse;
+        border: 1.5px solid #000;
+        width: 100%;
+      }
+      .details-table td {
+        border: 1px solid #000;
+        padding: 6px 10px;
+        font-size: 9pt;
+      }
+      .details-label {
+        font-weight: 700;
+        background-color: #f8fafc;
+        width: 55%;
+      }
+      .details-value {
+        text-align: right;
+        font-family: monospace;
+        font-size: 10pt;
+      }
+
+      /* Items Table */
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        border: 1.5px solid #000;
+      }
+      .items-table th {
+        border: 1px solid #000;
+        padding: 8px;
+        background-color: #f8fafc;
+        font-weight: 700;
+        font-size: 9pt;
+        text-align: left;
+        text-transform: uppercase;
+      }
+      .items-table td {
+        border: 1px solid #000;
+        padding: 8px;
+        font-size: 10pt;
+      }
+      .items-table .num {
+        text-align: right;
+        font-family: monospace;
+      }
+
+      /* Bottom Layout */
+      .bottom-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+        align-items: flex-start;
+      }
+      .payment-details-box {
+        border: 1.5px solid #000;
+        padding: 10px;
+        width: 45%;
+        font-size: 9pt;
+      }
+      .payment-details-title {
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .payment-details-row {
+        display: flex;
+        margin-bottom: 6px;
+        align-items: flex-end;
+      }
+      .payment-details-row span:first-child {
+        margin-right: 5px;
+        white-space: nowrap;
+      }
+      .fill-line {
+        flex-grow: 1;
+        border-bottom: 1px dotted #000;
+        height: 12px;
+      }
+      .total-box-container {
+        width: 50%;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .total-table {
+        border-collapse: collapse;
+        border: 2px double #000;
+        width: 100%;
+      }
+      .total-table td {
+        padding: 10px;
+        font-size: 11pt;
+        font-weight: 700;
+        border: 1px solid #000;
+      }
+      .total-label {
+        background-color: #f8fafc;
+        width: 50%;
+      }
+      .total-currency {
+        text-align: center;
+        width: 15%;
+      }
+      .total-value {
+        text-align: right;
+        width: 35%;
+        font-family: monospace;
+        font-size: 12pt;
+      }
+
+      /* Signatures */
+      .signature-row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 40px;
+        gap: 20px;
+      }
+      .signature-box {
+        width: 30%;
+        display: flex;
+        flex-direction: column;
+      }
+      .signature-label {
+        font-size: 10pt;
+        font-weight: 700;
+        margin-bottom: 40px;
+      }
+      .signature-line-container {
+        border-top: 1.5px solid #000;
+        padding-top: 4px;
+        text-align: center;
+      }
+      .signature-name-printed {
+        font-size: 9pt;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      /* Payment summary styles */
+      .pay-summary {
+        margin: 20px 0;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 15px;
+        background-color: #f8fafc;
+      }
+      .pay-summary h4 {
+        margin: 0 0 10px;
+        font-size: 10pt;
+        text-transform: uppercase;
+        color: #475569;
+        border-bottom: 1px solid #cbd5e1;
+        padding-bottom: 4px;
+      }
+      .pay-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 8px;
+        background: #fff;
+        font-size: 9pt;
+      }
+      .pay-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* Footer */
+      .footer-container {
+        margin-top: 30px;
+        text-align: center;
+      }
+      .thank-you {
+        font-size: 11pt;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+      }
+      .footer-text {
+        font-size: 9pt;
+        font-weight: bold;
+      }
+      .footer-text.underline {
+        text-decoration: underline;
+      }
+      .bir-compliance-footer {
+        margin-top: 24px;
+        font-size: 8pt;
+        color: #64748b;
+        text-align: center;
+        border-top: 1px solid #cbd5e1;
+        padding-top: 8px;
+      }
+      .vat-breakdown {
+        background: #f8fafc;
+        padding: 12px;
+        border-radius: 4px;
+        margin-top: 12px;
+        font-size: 9pt;
+        border: 1px solid #cbd5e1;
+      }
+      .vat-breakdown p {
+        margin: 2px 0;
+      }
     `;
     d.head.appendChild(style);
 
@@ -1545,23 +1873,119 @@ const Billing = {
     const isVat = vatAmount > 0;
     const paid = this.getPaidAmount(inv);
     const balance = inv.total - paid;
-    const payStatusClass = paid >= inv.total ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
-    const payStatusText = paid >= inv.total ? 'PAID' : paid > 0 ? 'PARTIALLY PAID' : 'UNPAID';
+    const hasPayments = Array.isArray(inv.payments) && inv.payments.length > 0;
 
-    const lineItemsHtml = inv.lineItems.map(li => {
+    let headerHtml = '';
+    if (noLogo) {
+      headerHtml = `
+        <div class="generic-header">
+          <div class="generic-company-name">${entity === 'ATA' ? 'A.T.A. BUSINESS CONSULTANCY' : 'LTA BUSINESS MANAGEMENT CORP'}</div>
+          <div class="generic-title">STATEMENT</div>
+        </div>
+        <div class="generic-header-divider"></div>
+      `;
+    } else if (entity === 'ATA') {
+      headerHtml = `
+        <div class="header-container-ata">
+          <div class="logo-area-ata">
+            <div class="logo-oval-ata">
+              <img src="ERP_Assets/ATA-logo-clean.png" alt="ATA Logo">
+            </div>
+            <div class="company-name-ata">A.T.A. BUSINESS CONSULTANCY</div>
+          </div>
+          <div class="statement-title-ata">STATEMENT</div>
+        </div>
+        <div class="header-divider-ata"></div>
+      `;
+    } else {
+      headerHtml = `
+        <div class="header-container-lta">
+          <div class="logo-banner-lta">
+            <img src="ERP_Assets/LTA-logo-clean.png" class="logo-img-lta" alt="LTA Logo">
+            <span class="company-name-lta">LTA BUSINESS MANAGEMENT CORP</span>
+          </div>
+          <div class="slanted-block-lta">STATEMENT</div>
+          <div class="right-statement-lta">STATEMENT</div>
+        </div>
+      `;
+    }
+
+    let tableHeaders = '';
+    if (noLogo || entity === 'ATA') {
+      tableHeaders = `
+        <tr>
+          <th style="width: 15%;">DATE</th>
+          <th style="width: 65%;">DESCRIPTION</th>
+          <th style="width: 20%; text-align: right;">AMOUNT DUE</th>
+        </tr>
+      `;
+    } else {
+      tableHeaders = `
+        <tr>
+          <th style="width: 15%;">DATE</th>
+          <th style="width: 55%;">DESCRIPTION</th>
+          <th style="width: 10%;"></th>
+          <th style="width: 20%; text-align: right;">AMOUNT DUE</th>
+        </tr>
+      `;
+    }
+
+    let balanceForwardRow = '';
+    if (noLogo || entity === 'ATA') {
+      balanceForwardRow = `
+        <tr>
+          <td></td>
+          <td style="font-weight: bold;">BALANCE FORWARD:</td>
+          <td></td>
+        </tr>
+      `;
+    } else {
+      balanceForwardRow = `
+        <tr>
+          <td></td>
+          <td style="font-weight: bold;">BALANCE FORWARD:</td>
+          <td></td>
+          <td></td>
+        </tr>
+      `;
+    }
+
+    const lineItemsHtml = inv.lineItems.map((li, idx) => {
       const qty = parseFloat(li.qty) || 1;
       const unit = parseFloat(li.unitCost || li.amount) || 0;
       const total = qty * unit;
-      return `<tr><td>${li.type ? '[' + li.type + '] ' : ''}${li.description || '—'}</td><td class="num">${qty}</td><td class="num">${formatPHP(unit)}</td><td class="num">${formatPHP(total)}</td></tr>`;
-    }).join('');
+      const dateStr = idx === 0 ? formatDate(inv.issueDate) : '';
+      let descStr = li.description || '—';
+      if (qty > 1) {
+        descStr += ` (Qty: ${qty} x ${formatPHP(unit)})`;
+      }
+      if (li.type) {
+        descStr = `[${li.type}] ${descStr}`;
+      }
 
-    const vatHtml = isVat
-      ? `<div class="vat-breakdown"><p><strong>VAT Breakdown</strong></p><p>VATable Sales: ${formatPHP(subtotal)}</p><p>VAT Amount (12%): ${formatPHP(vatAmount)}</p><p>Total Amount Due: ${formatPHP(inv.total)}</p></div>`
-      : `<div class="disclaimer">This document is not valid for claim of input tax.</div>`;
+      if (noLogo || entity === 'ATA') {
+        return `
+          <tr>
+            <td>${dateStr}</td>
+            <td>${descStr}</td>
+            <td class="num">${formatPHP(total)}</td>
+          </tr>
+        `;
+      } else {
+        return `
+          <tr>
+            <td>${dateStr}</td>
+            <td>${descStr}</td>
+            <td></td>
+            <td class="num">${formatPHP(total)}</td>
+          </tr>
+        `;
+      }
+    }).join('');
 
     // Build payment summary if payments exist
     let paySummaryHtml = '';
-    if (Array.isArray(inv.payments) && inv.payments.length > 0) {
+    if (hasPayments) {
       const payCards = inv.payments.map(p => {
         const methodCfg = PaymentIcons;
         const def = methodCfg['Other Digital'];
@@ -1570,7 +1994,7 @@ const Billing = {
         let detailRows = '';
         const addRow = (label, value) => {
           if (!value) return '';
-          return `<div style="display:flex; justify-content:space-between; align-items:baseline; font-size:0.8125rem; padding:3px 0;"><span style="color:#94a3b8; font-weight:500;">${label}</span><span style="color:#334155; font-weight:600; text-align:right;">${value}</span></div>`;
+          return `<div style="display:flex; justify-content:space-between; align-items:baseline; padding:2px 0;"><span style="color:#64748b;">${label}</span><span style="font-weight:600; text-align:right;">${value}</span></div>`;
         };
 
         if (p.reference) detailRows += addRow('Reference', p.reference);
@@ -1579,7 +2003,7 @@ const Billing = {
         if (p.bankAccount) detailRows += addRow('Account Number', p.bankAccount);
         if (p.transactionId) detailRows += addRow('Transaction ID', p.transactionId);
         if (p.digitalAccount) detailRows += addRow('Wallet / Account', p.digitalAccount);
-        if (p.cardLast4) addRow('Card Number', '**** ' + p.cardLast4);
+        if (p.cardLast4) detailRows += addRow('Card Number', '**** ' + p.cardLast4);
 
         const recorder = p.recordedBy ? DB.getById('users', p.recordedBy) : null;
         const collector = p.collectedBy ? DB.getById('users', p.collectedBy) : null;
@@ -1587,22 +2011,22 @@ const Billing = {
         detailRows += addRow('Collected By', collector ? collector.name : '—');
 
         const notesHtml = p.notes
-          ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:0.8125rem; color:#64748b; font-style:italic; line-height:1.4;">${p.notes}</div>`
+          ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0; color:#64748b; font-style:italic;">${p.notes}</div>`
           : '';
 
         return `
-          <div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:12px; background:#fff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="pay-card">
+            <div class="pay-card-header">
               <div>
-                <div style="font-weight:700; font-size:1.25rem; color:#1e293b; line-height:1.2;">${formatPHP(p.amount)}</div>
-                <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">${formatDate(p.date)}</div>
+                <div style="font-weight:700; font-size:1.1rem;">${formatPHP(p.amount)}</div>
+                <div style="font-size:0.75rem; color:#94a3b8;">${formatDate(p.date)}</div>
               </div>
-              <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; color:${cfg.color}; background:${cfg.bg}; letter-spacing:0.3px;">
-                ${cfg.svg} ${cfg.label}
+              <span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:700; color:${cfg.color}; background:${cfg.bg};">
+                ${cfg.label}
               </span>
             </div>
-            <div style="height:1px; background:#e2e8f0; margin:0 0 12px;"></div>
-            <div style="display:flex; flex-direction:column; gap:6px;">${detailRows}</div>
+            <div style="height:1px; background:#e2e8f0; margin:8px 0;"></div>
+            <div style="display:flex; flex-direction:column; gap:4px;">${detailRows}</div>
             ${notesHtml}
           </div>`;
       }).join('');
@@ -1611,44 +2035,77 @@ const Billing = {
         <div class="pay-summary">
           <h4>Payment Details</h4>
           ${payCards}
-          <div style="margin-top:8px; text-align:right; font-weight:600; font-size:10pt;">Total Paid: ${formatPHP(paid)} | Balance: ${formatPHP(balance)}</div>
+          <div style="margin-top:8px; text-align:right; font-weight:600; font-size:10pt;">
+            Total Paid: ${formatPHP(paid)} | Balance: ${formatPHP(balance)}
+          </div>
         </div>`;
     }
 
-    d.body.innerHTML = `
-      <div style="text-align:center; margin-bottom:4px;">
-        <div style="font-size:14pt; font-weight:700; letter-spacing:1px;">${entity} Accounting Services Firm</div>
-      </div>
-      <div style="border-bottom:2px solid #1e293b; margin-bottom:16px;"></div>
+    const vatHtml = isVat
+      ? `<div class="vat-breakdown">
+          <p><strong>VAT Breakdown</strong></p>
+          <p>VATable Sales: ${formatPHP(subtotal)}</p>
+          <p>VAT Amount (12%): ${formatPHP(vatAmount)}</p>
+          <p>Total Amount Due: ${formatPHP(inv.total)}</p>
+        </div>`
+      : '';
 
-      <div class="doc-title">Service Invoice</div>
+    d.body.innerHTML = `
+      ${headerHtml}
 
       <div class="two-col">
-        <div class="col">
-          <h3>Sold To / Client</h3>
-          <p><strong>${client?.name || '—'}</strong></p>
-          <p>TIN: ${client?.tin || '—'}</p>
-          <p>${client?.address || '—'}</p>
+        <div class="col-bill-to">
+          <div class="bill-to-title">${entity === 'ATA' ? 'BILL TO' : 'BILL TO:'}</div>
+          <div class="bill-to-content">
+            <p><strong>${client?.name || '—'}</strong></p>
+            ${client?.tradeName ? `<p>(${client.tradeName})</p>` : ''}
+            <p>${client?.address || '—'}</p>
+            ${client?.tin ? `<p>TIN: ${client.tin}</p>` : ''}
+          </div>
         </div>
-        <div class="col">
-          <h3>Invoice Details</h3>
-          <p><strong>Invoice No.:</strong> ${inv.invoiceNumber}</p>
-          <p><strong>Date Issued:</strong> ${formatDate(inv.issueDate)}</p>
+        <div class="col-details">
+          <table class="details-table">
+            <tr>
+              <td class="details-label">STATEMENT NUMBER</td>
+              <td class="details-value">${inv.invoiceNumber}</td>
+            </tr>
+            <tr>
+              <td class="details-label">STATEMENT DATE</td>
+              <td class="details-value">${formatDate(inv.issueDate)}</td>
+            </tr>
+          </table>
         </div>
       </div>
 
-      <table>
+      <table class="items-table">
         <thead>
-          <tr><th>Description of Service</th><th class="num">Qty</th><th class="num">Unit Cost</th><th class="num">Amount</th></tr>
+          ${tableHeaders}
         </thead>
         <tbody>
+          ${balanceForwardRow}
           ${lineItemsHtml}
         </tbody>
       </table>
 
-      <div class="totals">
-        ${isVat ? `<div class="totals-row"><span>Value Added Tax (12%)</span><span>${formatPHP(vatAmount)}</span></div>` : ''}
-        <div class="totals-row grand"><span>Total Amount Due</span><span>${formatPHP(inv.total)}</span></div>
+      <div class="bottom-container">
+        ${hasPayments ? '' : `
+        <div class="payment-details-box">
+          <div class="payment-details-title">PAYMENT DETAILS:</div>
+          <div class="payment-details-row"><span>DATE:</span><span class="fill-line"></span></div>
+          <div class="payment-details-row"><span>CASH:</span><span class="fill-line"></span></div>
+          <div class="payment-details-row"><span>DATE/CHECK NO.</span><span class="fill-line"></span></div>
+          <div class="payment-details-row"><span>BANK/BRANCH:</span><span class="fill-line"></span></div>
+        </div>
+        `}
+        <div class="total-box-container" style="${hasPayments ? 'width: 50%; margin-left: auto;' : 'width: 50%;'}">
+          <table class="total-table">
+            <tr>
+              <td class="total-label">TOTAL AMOUNT DUE</td>
+              <td class="total-currency">PHP</td>
+              <td class="total-value">${formatPHP(inv.total).replace('₱', '').trim()}</td>
+            </tr>
+          </table>
+        </div>
       </div>
 
       ${paySummaryHtml}
@@ -1656,17 +2113,36 @@ const Billing = {
 
       <div class="signature-row">
         <div class="signature-box">
-          <div class="line">Authorized Representative<br><span style="font-size:8pt;color:#64748b;">Signature over Printed Name / Date</span></div>
+          <div class="signature-label">Noted by:</div>
+          <div class="signature-line-container">
+            <div class="signature-name-printed">HENRY WONG</div>
+          </div>
         </div>
         <div class="signature-box">
-          <div class="line">Client Acknowledgment<br><span style="font-size:8pt;color:#64748b;">Signature over Printed Name / Date</span></div>
+          <div class="signature-label">Prepared by:</div>
+          <div class="signature-line-container">
+            <div class="signature-name-printed">&nbsp;</div>
+          </div>
+        </div>
+        <div class="signature-box">
+          <div class="signature-label">Received by:</div>
+          <div class="signature-line-container">
+            <div class="signature-name-printed">&nbsp;</div>
+          </div>
         </div>
       </div>
 
-      <div class="footer">
-        This Service Invoice is issued in compliance with Revenue Regulations No. 7-2024 (Ease of Paying Taxes Act).<br>
-        For questions, contact ${entity} Accounting Services Firm.<br>
-        Original copy retained for BIR audit trail.
+      <div class="footer-container">
+        <div class="thank-you">THANK YOU !!!</div>
+        ${entity === 'ATA'
+          ? `<div class="footer-text">customer's copy</div>`
+          : `<div class="footer-text underline">Should you have any enquiries concerning this statement, please contact us on 742-8582/404-4928</div>`
+        }
+      </div>
+
+      <div class="bir-compliance-footer">
+        This Statement is issued in compliance with Revenue Regulations No. 7-2024 (Ease of Paying Taxes Act).<br>
+        ${isVat ? '' : 'This document is not valid for claim of input tax. '}Original copy retained for BIR audit trail.
       </div>
     `;
 

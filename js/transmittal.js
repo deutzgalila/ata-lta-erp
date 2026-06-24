@@ -17,14 +17,14 @@ const Transmittal = {
       const titleBar = el('div', { class: 'page-title-bar-v2' });
       const h1 = el('h1', { class: 'breadcrumb-h1' });
       const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Transmittal' });
-      baseLink.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+      baseLink.addEventListener('click', () => { location.hash = '#transmittal'; });
       h1.appendChild(baseLink);
       h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
       h1.appendChild(document.createTextNode(t?.trackingNumber || 'Detail'));
       titleBar.appendChild(h1);
       
       const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to List' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+      backBtn.addEventListener('click', () => { location.hash = '#transmittal'; });
       titleBar.appendChild(backBtn);
       container.appendChild(titleBar);
     } else {
@@ -91,8 +91,13 @@ const Transmittal = {
     const actions = el('div', { class: 'actions-bar' });
     if (Auth.can('transmittal:edit')) {
       const addBtn = el('button', { class: 'btn btn-primary', text: 'Create Transmittal' });
-      addBtn.addEventListener('click', () => { this.view = 'form'; this.detailId = null; App.handleRoute(); });
+      addBtn.addEventListener('click', () => { location.hash = '#transmittal/form'; });
       actions.appendChild(addBtn);
+    }
+    if (Auth.can('transmittal:request')) {
+      const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Transmittal from Documentation' });
+      reqBtn.addEventListener('click', () => { Transmittal.showRequestTransmittalModal(); });
+      actions.appendChild(reqBtn);
     }
 
     const wrapper = el('div');
@@ -114,22 +119,12 @@ const Transmittal = {
           info.textContent = `${client ? client.name : 'Unknown Client'} – ${wr ? wr.title : 'Unknown WR'} (requested by ${req.requestedBy || 'N/A'})`;
           row.appendChild(info);
           const fulfillBtn = el('button', { class: 'btn btn-primary', text: 'Fulfill', style: 'padding:2px 12px;font-size:0.8rem;' });
-          fulfillBtn.addEventListener('click', () => { Transmittal.view = 'form'; Transmittal.prefilledWrId = req.workRequestId; Transmittal.prefilledClientId = req.clientId; Transmittal.prefilledRequestId = req.id; App.handleRoute(); });
+          fulfillBtn.addEventListener('click', () => { Transmittal.prefilledWrId = req.workRequestId; Transmittal.prefilledClientId = req.clientId; Transmittal.prefilledRequestId = req.id; location.hash = '#transmittal/form'; });
           row.appendChild(fulfillBtn);
           banner.appendChild(row);
         });
         wrapper.appendChild(banner);
       }
-    } else if (Auth.can('transmittal:request')) {
-      const myPendingReqs = DB.getWhere('operationsRequests', r => r.status === 'pending' && r.type === 'transmittal' && r.requestedBy === Auth.user.name);
-      const reqBanner = el('div', { class: 'pending-requests-banner', style: 'background:linear-gradient(135deg,#fff8e1,#ffecb3);border:1px solid #ffc107;border-radius:var(--radius-md);padding:var(--spacing-md);margin-bottom:var(--spacing-md);display:flex;align-items:center;justify-content:space-between;' });
-      const reqInfo = el('span', { style: 'font-size:0.9rem;color:#333;' });
-      reqInfo.textContent = myPendingReqs.length > 0 ? `You have ${myPendingReqs.length} pending transmittal request${myPendingReqs.length > 1 ? 's' : ''}.` : 'Need a transmittal created? Submit a request to Documentation.';
-      reqBanner.appendChild(reqInfo);
-      const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Transmittal from Documentation', style: 'white-space:nowrap;' });
-      reqBtn.addEventListener('click', () => { Transmittal.showRequestTransmittalModal(); });
-      reqBanner.appendChild(reqBtn);
-      wrapper.appendChild(reqBanner);
     }
 
     // Filters bar
@@ -347,7 +342,7 @@ const Transmittal = {
       tr.appendChild(el('td', { text: String((t.items || []).length) }));
       const tdAct = el('td');
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailId = t.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#transmittal/detail/' + t.id; });
       tdAct.appendChild(viewBtn);
       tr.appendChild(tdAct);
       tbody.appendChild(tr);
@@ -387,7 +382,7 @@ const Transmittal = {
 
         const card = el('div', { class: 'board-card-v2' });
         card.style.borderLeftColor = colColor;
-        card.addEventListener('click', () => { this.view = 'detail'; this.detailId = t.id; App.handleRoute(); });
+        card.addEventListener('click', () => { location.hash = '#transmittal/detail/' + t.id; });
 
         // Top: Status path and Date
         const topRow = el('div', { class: 'card-v2-top' });
@@ -429,7 +424,7 @@ const Transmittal = {
       left.appendChild(el('div', { class: 'list-item-meta', text: this.getClientName(t.clientId) + ' • ' + this.getWorkRequestTitle(t.workRequestId) + ' • ' + String((t.items || []).length) + ' items' }));
       item.appendChild(left);
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailId = t.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#transmittal/detail/' + t.id; });
       item.appendChild(viewBtn);
       list.appendChild(item);
     });
@@ -454,7 +449,7 @@ const Transmittal = {
     saveTopBtn.addEventListener('click', () => { this.submitForm(form); });
     headerActions.appendChild(saveTopBtn);
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-secondary', text: 'Cancel' });
-    cancelBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+    cancelBtn.addEventListener('click', () => { location.hash = '#transmittal'; });
     headerActions.appendChild(cancelBtn);
     headerBar.appendChild(headerActions);
     container.appendChild(headerBar);
@@ -675,9 +670,7 @@ const Transmittal = {
     this.prefilledWrId = null;
     this.prefilledClientId = null;
 
-    this.view = 'list';
-    this.detailId = null;
-    App.handleRoute();
+    location.hash = '#transmittal';
   },
 
   // ============================================================
@@ -744,14 +737,14 @@ const Transmittal = {
 
   renderDetail() {
     const t = DB.getById('transmittals', this.detailId);
-    if (!t) { this.view = 'list'; App.handleRoute(); return el('div'); }
+    if (!t) { location.hash = '#transmittal'; return el('div'); }
 
     const container = el('div', { class: 'invoice-detail' });
 
     // Top actions bar
     const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
     const topBackBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to List' });
-    topBackBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+    topBackBtn.addEventListener('click', () => { location.hash = '#transmittal'; });
     topActions.appendChild(topBackBtn);
 
     const printBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Print Transmittal' });

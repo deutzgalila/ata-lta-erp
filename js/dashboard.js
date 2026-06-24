@@ -162,11 +162,7 @@ const Dashboard = {
       wrs.forEach(wr => {
         const item = el('div', { class: 'detail-item-v2', style: 'display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; background: var(--color-bg); cursor: pointer;' });
         item.addEventListener('click', () => {
-          location.hash = `#operations`;
-          // We can set the active work request detail
-          Workflow.detailWrId = wr.id;
-          Workflow.view = 'detail';
-          App.handleRoute();
+          location.hash = `#operations/detail/${wr.id}`;
         });
         const left = el('div', { style: 'display: flex; flex-direction: column; gap: 2px;' });
         left.appendChild(el('span', { text: wr.title, style: 'font-weight: 600; font-size: 0.875rem;' }));
@@ -1507,16 +1503,10 @@ const Dashboard = {
       viewBtn.onclick = (e) => {
         e.stopPropagation();
         if (type === 'wr') {
-          Workflow.view = 'detail';
-          Workflow.detailWrId = item.id;
-          // Note: The detail view in workflow natively shows the tasks list.
-          location.hash = '#operations';
+          location.hash = '#operations/detail/' + item.id;
         } else {
-          Disbursement.view = 'detail';
-          Disbursement.detailId = item.id;
-          location.hash = '#disbursement';
+          location.hash = '#disbursement/detail/' + item.id;
         }
-        App.handleRoute();
       };
       details.appendChild(viewBtn);
 
@@ -1602,25 +1592,18 @@ const Dashboard = {
 
   fulfillOperationsRequest(req) {
     if (req.type === 'billing') {
-      Billing.view = 'form';
-      Billing.detailId = null;
       Billing.prefilledWrId = req.workRequestId;
       Billing.prefilledClientId = req.clientId;
       Billing.prefilledRequestId = req.id;
-      location.hash = '#billing';
+      location.hash = '#billing/form';
     } else if (req.type === 'disbursement') {
-      Disbursement.view = 'form';
-      Disbursement.detailId = null;
       Disbursement.prefilledWrId = req.workRequestId;
       Disbursement.prefilledClientId = req.clientId;
       Disbursement.prefilledRequestId = req.id;
-      location.hash = '#disbursement';
+      location.hash = '#disbursement/form';
     } else if (req.type === 'transmittal') {
-      Workflow.view = 'detail';
-      Workflow.detailWrId = req.workRequestId;
       Workflow.prefilledTransmittalRequestId = req.id;
-      location.hash = '#operations';
+      location.hash = '#operations/detail/' + req.workRequestId;
     }
-    App.handleRoute();
   }
 };

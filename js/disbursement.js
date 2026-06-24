@@ -16,7 +16,7 @@ const Disbursement = {
       const titleBar = el('div', { class: 'page-title-bar-v2' });
       const h1 = el('h1', { class: 'breadcrumb-h1' });
       const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Disbursement' });
-      baseLink.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+      baseLink.addEventListener('click', () => { location.hash = '#disbursement'; });
       h1.appendChild(baseLink);
       h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
       h1.appendChild(document.createTextNode(d?.description || 'Detail'));
@@ -32,7 +32,7 @@ const Disbursement = {
         actions.appendChild(genVouchBtn);
       }
       const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to List' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+      backBtn.addEventListener('click', () => { location.hash = '#disbursement'; });
       actions.appendChild(backBtn);
       titleBar.appendChild(actions);
       container.appendChild(titleBar);
@@ -119,7 +119,7 @@ const Disbursement = {
     const actions = el('div', { class: 'actions-bar' });
     if (Auth.can('disbursement:create')) {
       const addBtn = el('button', { class: 'btn btn-primary', text: 'File Expense' });
-      addBtn.addEventListener('click', () => { this.view = 'form'; this.detailId = null; App.handleRoute(); });
+      addBtn.addEventListener('click', () => { location.hash = '#disbursement/form'; });
       actions.appendChild(addBtn);
 
       const templatesBtn = el('button', { class: 'btn btn-secondary', text: 'Templates' });
@@ -130,6 +130,12 @@ const Disbursement = {
     const reportBtn = el('button', { class: 'btn btn-secondary', text: 'Summary Report' });
     reportBtn.addEventListener('click', () => { this.view = 'report'; App.handleRoute(); });
     actions.appendChild(reportBtn);
+
+    if (Auth.can('disbursement:request')) {
+      const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Disbursement from Accounting' });
+      reqBtn.addEventListener('click', () => { Disbursement.showRequestDisbursementModal(); });
+      actions.appendChild(reqBtn);
+    }
 
     const wrapper = el('div');
     wrapper.appendChild(actions);
@@ -150,22 +156,12 @@ const Disbursement = {
           info.textContent = `${client ? client.name : 'Unknown Client'} – ${wr ? wr.title : 'Unknown WR'} (requested by ${req.requestedBy || 'N/A'})`;
           row.appendChild(info);
           const fulfillBtn = el('button', { class: 'btn btn-primary', text: 'Fulfill', style: 'padding:2px 12px;font-size:0.8rem;' });
-          fulfillBtn.addEventListener('click', () => { Disbursement.view = 'form'; Disbursement.prefilledWrId = req.workRequestId; Disbursement.prefilledClientId = req.clientId; Disbursement.prefilledRequestId = req.id; App.handleRoute(); });
+          fulfillBtn.addEventListener('click', () => { Disbursement.prefilledWrId = req.workRequestId; Disbursement.prefilledClientId = req.clientId; Disbursement.prefilledRequestId = req.id; location.hash = '#disbursement/form'; });
           row.appendChild(fulfillBtn);
           banner.appendChild(row);
         });
         wrapper.appendChild(banner);
       }
-    } else if (Auth.can('disbursement:request')) {
-      const myPendingReqs = DB.getWhere('operationsRequests', r => r.status === 'pending' && r.type === 'disbursement' && r.requestedBy === Auth.user.name);
-      const reqBanner = el('div', { class: 'pending-requests-banner', style: 'background:linear-gradient(135deg,#fff8e1,#ffecb3);border:1px solid #ffc107;border-radius:var(--radius-md);padding:var(--spacing-md);margin-bottom:var(--spacing-md);display:flex;align-items:center;justify-content:space-between;' });
-      const reqInfo = el('span', { style: 'font-size:0.9rem;color:#333;' });
-      reqInfo.textContent = myPendingReqs.length > 0 ? `You have ${myPendingReqs.length} pending disbursement request${myPendingReqs.length > 1 ? 's' : ''}.` : 'Need an expense filed? Submit a request to Accounting.';
-      reqBanner.appendChild(reqInfo);
-      const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Disbursement from Accounting', style: 'white-space:nowrap;' });
-      reqBtn.addEventListener('click', () => { Disbursement.showRequestDisbursementModal(); });
-      reqBanner.appendChild(reqBtn);
-      wrapper.appendChild(reqBanner);
     }
 
     // "Pending for Release" Section for Handlers
@@ -193,7 +189,7 @@ const Disbursement = {
         tr.appendChild(el('td', { text: req?.name || '—' }));
         const tdAct = el('td', { class: 'text-right' });
         const authBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Authorize Release' });
-        authBtn.addEventListener('click', () => { this.detailId = d.id; this.view = 'detail'; App.handleRoute(); });
+        authBtn.addEventListener('click', () => { location.hash = '#disbursement/detail/' + d.id; });
         tdAct.appendChild(authBtn);
         tr.appendChild(tdAct);
         pfrBody.appendChild(tr);
@@ -452,7 +448,7 @@ const Disbursement = {
       tr.appendChild(el('td', { text: formatDate(d.submittedAt) }));
       const tdAct = el('td');
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailId = d.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#disbursement/detail/' + d.id; });
       tdAct.appendChild(viewBtn);
       tr.appendChild(tdAct);
       tbody.appendChild(tr);
@@ -497,7 +493,7 @@ const Disbursement = {
         const emp = DB.getById('users', this.getEmployeeId(d));
         const card = el('div', { class: 'board-card-v2' });
         card.style.borderLeftColor = colColor;
-        card.addEventListener('click', () => { this.view = 'detail'; this.detailId = d.id; App.handleRoute(); });
+        card.addEventListener('click', () => { location.hash = '#disbursement/detail/' + d.id; });
 
         // Top: Status path and Date
         const topRow = el('div', { class: 'card-v2-top' });
@@ -576,7 +572,7 @@ const Disbursement = {
       left.appendChild(el('div', { class: 'list-item-meta', text: (emp?.name || '—') + ' • ' + this.getFundSource(d) + ' • ' + formatDate(d.submittedAt) + wrMeta }));
       item.appendChild(left);
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailId = d.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#disbursement/detail/' + d.id; });
       item.appendChild(viewBtn);
       list.appendChild(item);
     });
@@ -606,7 +602,7 @@ const Disbursement = {
     headerBar.appendChild(el('h2', { text: isNew ? 'File Expense' : 'Edit Expense' }));
     const headerActions = el('div', { class: 'form-actions-top' });
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-secondary', text: 'Cancel' });
-    cancelBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+    cancelBtn.addEventListener('click', () => { location.hash = '#disbursement'; });
     headerActions.appendChild(cancelBtn);
 
     const saveBtnTop = el('button', { type: 'submit', class: 'btn btn-primary', text: isNew ? 'Submit Expense' : 'Save Changes', form: 'disbursement-form' });
@@ -818,9 +814,7 @@ const Disbursement = {
     this.prefilledWrId = null;
     this.prefilledClientId = null;
 
-    this.view = 'list';
-    this.detailId = null;
-    App.handleRoute();
+    location.hash = '#disbursement';
   },
 
   showRequestDisbursementModal() {
@@ -887,7 +881,7 @@ const Disbursement = {
   // ============================================================
   renderDetail() {
     const d = DB.getById('disbursements', this.detailId);
-    if (!d) { this.view = 'list'; App.handleRoute(); return el('div'); }
+    if (!d) { location.hash = '#disbursement'; return el('div'); }
     const emp = DB.getById('users', this.getEmployeeId(d));
     const wr = d.linkedWorkRequestId ? DB.getById('workRequests', d.linkedWorkRequestId) : null;
     const client = wr ? DB.getById('clients', wr.clientId) : null;
@@ -929,9 +923,7 @@ const Disbursement = {
           style: 'color:#2563eb;font-weight:500;text-decoration:none;'
         });
         wrLink.addEventListener('click', () => {
-          Workflow.view = 'detail';
-          Workflow.detailWrId = linkedWr.id;
-          location.hash = '#workflow';
+          location.hash = '#operations/detail/' + linkedWr.id;
         });
         wrLink.addEventListener('mouseenter', () => { wrLink.style.textDecoration = 'underline'; });
         wrLink.addEventListener('mouseleave', () => { wrLink.style.textDecoration = 'none'; });

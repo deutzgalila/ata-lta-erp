@@ -674,9 +674,7 @@ const Users = {
       });
       card.addEventListener('click', () => {
         if (item.type === 'disbursement') {
-          Disbursement.view = 'detail';
-          Disbursement.detailId = item.id;
-          location.hash = '#disbursement';
+          location.hash = '#disbursement/detail/' + item.id;
         } else {
           this.pendingDetailId = item.id;
           App.handleRoute();
@@ -748,9 +746,7 @@ const Users = {
       const tr = el('tr', { style: 'cursor: pointer;' });
       tr.addEventListener('click', () => {
         if (item.type === 'disbursement') {
-          Disbursement.view = 'detail';
-          Disbursement.detailId = item.id;
-          location.hash = '#disbursement';
+          location.hash = '#disbursement/detail/' + item.id;
         } else {
           this.pendingDetailId = item.id;
           App.handleRoute();
@@ -805,9 +801,7 @@ const Users = {
       const row = el('div', { class: 'list-item', style: 'cursor: pointer;' });
       row.addEventListener('click', () => {
         if (item.type === 'disbursement') {
-          Disbursement.view = 'detail';
-          Disbursement.detailId = item.id;
-          location.hash = '#disbursement';
+          location.hash = '#disbursement/detail/' + item.id;
         } else {
           this.pendingDetailId = item.id;
           App.handleRoute();

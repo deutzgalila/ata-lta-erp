@@ -321,7 +321,59 @@ const App = {
 
   handleRoute() {
     if (window.SidePaneInstance) window.SidePaneInstance.close();
-    const hash = location.hash || '#dashboard';
+    const rawHash = location.hash || '#dashboard';
+    const parts = rawHash.split('?');
+    const pathParts = parts[0].split('/');
+    const baseHash = pathParts[0];
+
+    // Auto-update module view state from route detail/form paths
+    if (baseHash === '#operations') {
+      if (pathParts[1] === 'detail' && pathParts[2]) {
+        Workflow.view = 'detail';
+        Workflow.detailWrId = pathParts[2];
+      } else if (pathParts[1] === 'form') {
+        Workflow.view = 'form';
+        Workflow.editingId = pathParts[2] || null;
+      } else {
+        Workflow.view = 'list';
+        Workflow.detailWrId = null;
+        Workflow.editingId = null;
+      }
+    } else if (baseHash === '#billing') {
+      if (pathParts[1] === 'detail' && pathParts[2]) {
+        Billing.view = 'detail';
+        Billing.detailId = pathParts[2];
+      } else if (pathParts[1] === 'form') {
+        Billing.view = 'form';
+        Billing.detailId = pathParts[2] || null;
+      } else {
+        Billing.view = 'list';
+        Billing.detailId = null;
+      }
+    } else if (baseHash === '#disbursement') {
+      if (pathParts[1] === 'detail' && pathParts[2]) {
+        Disbursement.view = 'detail';
+        Disbursement.detailId = pathParts[2];
+      } else if (pathParts[1] === 'form') {
+        Disbursement.view = 'form';
+        Disbursement.detailId = pathParts[2] || null;
+      } else {
+        Disbursement.view = 'list';
+        Disbursement.detailId = null;
+      }
+    } else if (baseHash === '#transmittal') {
+      if (pathParts[1] === 'detail' && pathParts[2]) {
+        Transmittal.view = 'detail';
+        Transmittal.detailId = pathParts[2];
+      } else if (pathParts[1] === 'form') {
+        Transmittal.view = 'form';
+        Transmittal.detailId = pathParts[2] || null;
+      } else {
+        Transmittal.view = 'list';
+        Transmittal.detailId = null;
+      }
+    }
+
     const moduleMap = {
       '#dashboard': Dashboard,
       '#clients': Clients,
@@ -334,13 +386,12 @@ const App = {
     };
 
     // RBAC: Restricted modules
-    if (hash === '#reports' && !Auth.can('reports:view')) {
+    if (baseHash === '#reports' && !Auth.can('reports:view')) {
        location.hash = '#dashboard';
        return;
     }
 
-
-    const module = moduleMap[hash];
+    const module = moduleMap[baseHash];
     const content = document.getElementById('content');
 
     if (module && module.render) {
@@ -352,7 +403,7 @@ const App = {
         content.appendChild(rendered);
       }
       if (module.init) module.init();
-      this.highlightNav(hash);
+      this.highlightNav(rawHash);
       this.updateEntityBadge();
       this.updateSidebarNotifications();
       requestAnimationFrame(() => this.updateStickyTrayOffset());
@@ -360,8 +411,9 @@ const App = {
   },
 
   highlightNav(hash) {
+    const baseHash = hash.split('?')[0].split('/')[0];
     document.querySelectorAll('nav a').forEach(a => {
-      a.classList.toggle('active', a.getAttribute('href') === hash);
+      a.classList.toggle('active', a.getAttribute('href') === baseHash);
     });
   },
 

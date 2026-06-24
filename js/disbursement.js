@@ -1220,6 +1220,8 @@ const Disbursement = {
     const emp = DB.getById('users', this.getEmployeeId(d));
     const requester = DB.getById('users', d.requestedBy);
     const approver = d.approvedBy ? DB.getById('users', d.approvedBy) : null;
+    const handler = d.paymentHandledBy ? DB.getById('users', d.paymentHandledBy) : null;
+    const releaser = d.releasedBy ? DB.getById('users', d.releasedBy) : null;
     const wr = d.linkedWorkRequestId ? DB.getById('workRequests', d.linkedWorkRequestId) : null;
     const client = wr ? DB.getById('clients', wr.clientId) : null;
     const entity = d.entity || 'ATA';
@@ -1317,6 +1319,10 @@ const Disbursement = {
         <div class="signature-box">
           <div class="line">Approved By<br><span style="font-size:8pt;color:#64748b;">${approver?.name || '—'} / Date</span></div>
         </div>
+        ${d.status === 'Released' ? `
+        <div class="signature-box">
+          <div class="line">Released By<br><span style="font-size:8pt;color:#64748b;">${releaser ? releaser.name : (handler ? handler.name : '—')} / Date</span></div>
+        </div>` : ''}
       </div>
 
       <div class="footer">
@@ -1334,6 +1340,7 @@ const Disbursement = {
     const requester = DB.getById('users', d.requestedBy);
     const approver = d.approvedBy ? DB.getById('users', d.approvedBy) : null;
     const handler = d.paymentHandledBy ? DB.getById('users', d.paymentHandledBy) : null;
+    const releaser = d.releasedBy ? DB.getById('users', d.releasedBy) : null;
     const wr = d.linkedWorkRequestId ? DB.getById('workRequests', d.linkedWorkRequestId) : null;
     const client = wr ? DB.getById('clients', wr.clientId) : null;
     const entity = d.entity || 'ATA';
@@ -1395,7 +1402,7 @@ const Disbursement = {
 
       if (pd.reference) detailRows += addRow('Reference / Check No.', pd.reference);
       if (pd.bank) detailRows += addRow('Bank', pd.bank);
-      detailRows += addRow('Processed By', handler ? handler.name : '—');
+      detailRows += addRow('Released By', releaser ? releaser.name : (handler ? handler.name : '—'));
       detailRows += addRow('Date of Release', formatDate(pd.date || d.releasedAt));
 
       paymentDetailsHtml = `
@@ -1416,7 +1423,7 @@ const Disbursement = {
           </div>
           <div class="box" style="background:#dcfce7; border-color:#10b981;">
             <p><strong>Status: FUNDS RELEASED</strong></p>
-            <p style="font-size:9pt;">Payment has been authorized and released by ${handler?.name || 'assigned handler'}.</p>
+            <p style="font-size:9pt;">Payment has been authorized by ${approver?.name || 'Authorized Approver'} and released by ${releaser?.name || handler?.name || 'assigned handler'}.</p>
           </div>
         </div>`;
     } else {

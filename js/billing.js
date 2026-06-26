@@ -1936,7 +1936,6 @@ const Billing = {
             <span class="company-name-lta">LTA BUSINESS MANAGEMENT CORP</span>
           </div>
           <div class="slanted-block-lta">STATEMENT</div>
-          <div class="right-statement-lta">STATEMENT</div>
         </div>
       `;
     }

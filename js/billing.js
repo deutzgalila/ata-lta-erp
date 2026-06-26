@@ -1507,11 +1507,13 @@ const Billing = {
     const style = d.createElement('style');
     style.textContent = `
       @page { size: A4; margin: 15mm 20mm; }
-      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #000; max-width: 210mm; margin: 0 auto; padding: 0; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #000; max-width: 210mm; margin: 0 auto; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       
       /* Generic Header Styles */
       .generic-header {
-        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 5px;
       }
       .generic-company-name {
@@ -1522,11 +1524,10 @@ const Billing = {
         font-family: 'Segoe UI', Arial, sans-serif;
       }
       .generic-title {
-        font-size: 20pt;
+        font-size: 24pt;
         font-weight: 800;
         letter-spacing: 2px;
         color: #000;
-        margin-top: 5px;
       }
       .generic-header-divider {
         border-bottom: 2px solid #000;
@@ -1598,6 +1599,8 @@ const Billing = {
         color: white;
         padding: 0 15px;
         flex: 1;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
       .logo-img-lta {
         height: 40px;
@@ -1623,6 +1626,8 @@ const Billing = {
         font-weight: 700;
         clip-path: polygon(15px 0, 100% 0, 100% 100%, 0 100%);
         margin-left: -15px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
       .right-statement-lta {
         display: flex;
@@ -1880,6 +1885,29 @@ const Billing = {
     const balance = inv.total - paid;
     const hasPayments = Array.isArray(inv.payments) && inv.payments.length > 0;
 
+    let dateVal = '';
+    let cashVal = '';
+    let checkVal = '';
+    let bankVal = '';
+
+    if (hasPayments) {
+      const p = inv.payments[0];
+      if (p) {
+        dateVal = p.date ? formatDate(p.date) : '';
+        if (p.method === 'Cash') {
+          cashVal = formatPHP(p.amount);
+        } else if (p.method === 'Check') {
+          checkVal = p.checkNumber || '';
+          bankVal = p.bankName || '';
+        } else {
+          // Digital methods
+          cashVal = formatPHP(p.amount);
+          checkVal = p.transactionId || p.reference || '';
+          bankVal = p.bankName || p.method || '';
+        }
+      }
+    }
+
     let headerHtml = '';
     if (noLogo) {
       headerHtml = `
@@ -1986,63 +2014,7 @@ const Billing = {
       }
     }).join('');
 
-    // Build payment summary if payments exist
-    let paySummaryHtml = '';
-    if (hasPayments) {
-      const payCards = inv.payments.map(p => {
-        const methodCfg = PaymentIcons;
-        const def = methodCfg['Other Digital'];
-        const cfg = methodCfg[p.method] || def;
 
-        let detailRows = '';
-        const addRow = (label, value) => {
-          if (!value) return '';
-          return `<div style="display:flex; justify-content:space-between; align-items:baseline; padding:2px 0;"><span style="color:#64748b;">${label}</span><span style="font-weight:600; text-align:right;">${value}</span></div>`;
-        };
-
-        if (p.reference) detailRows += addRow('Reference', p.reference);
-        if (p.checkNumber) detailRows += addRow('Check Number', p.checkNumber);
-        if (p.bankName) detailRows += addRow('Bank', p.bankName);
-        if (p.bankAccount) detailRows += addRow('Account Number', p.bankAccount);
-        if (p.transactionId) detailRows += addRow('Transaction ID', p.transactionId);
-        if (p.digitalAccount) detailRows += addRow('Wallet / Account', p.digitalAccount);
-        if (p.cardLast4) detailRows += addRow('Card Number', '**** ' + p.cardLast4);
-
-        const recorder = p.recordedBy ? DB.getById('users', p.recordedBy) : null;
-        const collector = p.collectedBy ? DB.getById('users', p.collectedBy) : null;
-        detailRows += addRow('Recorded By', recorder ? recorder.name : '—');
-        detailRows += addRow('Collected By', collector ? collector.name : '—');
-
-        const notesHtml = p.notes
-          ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0; color:#64748b; font-style:italic;">${p.notes}</div>`
-          : '';
-
-        return `
-          <div class="pay-card">
-            <div class="pay-card-header">
-              <div>
-                <div style="font-weight:700; font-size:1.1rem;">${formatPHP(p.amount)}</div>
-                <div style="font-size:0.75rem; color:#94a3b8;">${formatDate(p.date)}</div>
-              </div>
-              <span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:700; color:${cfg.color}; background:${cfg.bg};">
-                ${cfg.label}
-              </span>
-            </div>
-            <div style="height:1px; background:#e2e8f0; margin:8px 0;"></div>
-            <div style="display:flex; flex-direction:column; gap:4px;">${detailRows}</div>
-            ${notesHtml}
-          </div>`;
-      }).join('');
-
-      paySummaryHtml = `
-        <div class="pay-summary">
-          <h4>Payment Details</h4>
-          ${payCards}
-          <div style="margin-top:8px; text-align:right; font-weight:600; font-size:10pt;">
-            Total Paid: ${formatPHP(paid)} | Balance: ${formatPHP(balance)}
-          </div>
-        </div>`;
-    }
 
     const vatHtml = isVat
       ? `<div class="vat-breakdown">
@@ -2091,16 +2063,14 @@ const Billing = {
       </table>
 
       <div class="bottom-container">
-        ${hasPayments ? '' : `
         <div class="payment-details-box">
           <div class="payment-details-title">PAYMENT DETAILS:</div>
-          <div class="payment-details-row"><span>DATE:</span><span class="fill-line"></span></div>
-          <div class="payment-details-row"><span>CASH:</span><span class="fill-line"></span></div>
-          <div class="payment-details-row"><span>DATE/CHECK NO.</span><span class="fill-line"></span></div>
-          <div class="payment-details-row"><span>BANK/BRANCH:</span><span class="fill-line"></span></div>
+          <div class="payment-details-row"><span>DATE:</span><span class="fill-line" style="padding-left: 5px; font-weight: bold;">${dateVal}</span></div>
+          <div class="payment-details-row"><span>CASH:</span><span class="fill-line" style="padding-left: 5px; font-weight: bold;">${cashVal}</span></div>
+          <div class="payment-details-row"><span>DATE/CHECK NO.</span><span class="fill-line" style="padding-left: 5px; font-weight: bold;">${checkVal}</span></div>
+          <div class="payment-details-row"><span>BANK/BRANCH:</span><span class="fill-line" style="padding-left: 5px; font-weight: bold;">${bankVal}</span></div>
         </div>
-        `}
-        <div class="total-box-container" style="${hasPayments ? 'width: 50%; margin-left: auto;' : 'width: 50%;'}">
+        <div class="total-box-container" style="width: 50%;">
           <table class="total-table">
             <tr>
               <td class="total-label">TOTAL AMOUNT DUE</td>
@@ -2110,8 +2080,6 @@ const Billing = {
           </table>
         </div>
       </div>
-
-      ${paySummaryHtml}
       ${vatHtml}
 
       <div class="signature-row">

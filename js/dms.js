@@ -294,12 +294,10 @@ const DMS = {
       const wr = DB.getById('workRequests', doc.workRequestId);
       const tdWr = el('td');
       if (wr) {
-        const wrLink = el('a', { href: '#workflow', text: wr.title });
+        const wrLink = el('a', { href: '#operations/detail/' + wr.id, text: wr.title });
         wrLink.addEventListener('click', (e) => {
           e.preventDefault();
-          Workflow.view = 'detail';
-          Workflow.detailWrId = wr.id;
-          location.hash = '#workflow';
+          location.hash = '#operations/detail/' + wr.id;
         });
         tdWr.appendChild(wrLink);
       } else {

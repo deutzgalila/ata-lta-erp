@@ -31,7 +31,7 @@ const Billing = {
       const titleBar = el('div', { class: 'page-title-bar-v2' });
       const h1 = el('h1', { class: 'breadcrumb-h1' });
       const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Billing' });
-      baseLink.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+      baseLink.addEventListener('click', () => { location.hash = '#billing'; });
       h1.appendChild(baseLink);
       h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
       h1.appendChild(document.createTextNode(inv?.invoiceNumber || 'Detail'));
@@ -47,7 +47,7 @@ const Billing = {
         actions.appendChild(genVouchBtn);
       }
       const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Invoices' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+      backBtn.addEventListener('click', () => { location.hash = '#billing'; });
       actions.appendChild(backBtn);
       titleBar.appendChild(actions);
       container.appendChild(titleBar);
@@ -73,6 +73,20 @@ const Billing = {
       h1.appendChild(baseLink);
       h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
       h1.appendChild(document.createTextNode('Trash'));
+      titleBar.appendChild(h1);
+
+      const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Invoices' });
+      backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
+      titleBar.appendChild(backBtn);
+      container.appendChild(titleBar);
+    } else if (this.view === 'aging') {
+      const titleBar = el('div', { class: 'page-title-bar-v2' });
+      const h1 = el('h1', { class: 'breadcrumb-h1' });
+      const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Billing' });
+      baseLink.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
+      h1.appendChild(baseLink);
+      h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
+      h1.appendChild(document.createTextNode('Aging Report'));
       titleBar.appendChild(h1);
 
       const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Invoices' });
@@ -121,7 +135,7 @@ const Billing = {
     const actions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-md);' });
     if (Auth.can('billing:edit')) {
       const addBtn = el('button', { class: 'btn btn-primary', text: 'Create Invoice' });
-      addBtn.addEventListener('click', () => { this.view = 'form'; this.detailId = null; App.handleRoute(); });
+      addBtn.addEventListener('click', () => { location.hash = '#billing/form'; });
       actions.appendChild(addBtn);
       const templatesBtn = el('button', { class: 'btn btn-secondary', text: 'Templates' });
       templatesBtn.addEventListener('click', () => { this.view = 'templates'; App.handleRoute(); });
@@ -134,6 +148,11 @@ const Billing = {
       const trashBtn = el('button', { class: 'btn btn-secondary', text: 'Trash' });
       trashBtn.addEventListener('click', () => { this.view = 'trash'; App.handleRoute(); });
       actions.appendChild(trashBtn);
+    }
+    if (Auth.can('billing:request')) {
+      const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Invoice from Accounting' });
+      reqBtn.addEventListener('click', () => { Billing.showRequestInvoiceModal(); });
+      actions.appendChild(reqBtn);
     }
     wrapper.appendChild(actions);
 
@@ -153,22 +172,12 @@ const Billing = {
           info.textContent = `${client ? client.name : 'Unknown Client'} – ${wr ? wr.title : 'Unknown WR'} (requested by ${req.requestedBy || 'N/A'})`;
           row.appendChild(info);
           const fulfillBtn = el('button', { class: 'btn btn-primary', text: 'Fulfill', style: 'padding:2px 12px;font-size:0.8rem;' });
-          fulfillBtn.addEventListener('click', () => { Billing.view = 'form'; Billing.prefilledWrId = req.workRequestId; Billing.prefilledClientId = req.clientId; Billing.prefilledRequestId = req.id; App.handleRoute(); });
+          fulfillBtn.addEventListener('click', () => { Billing.prefilledWrId = req.workRequestId; Billing.prefilledClientId = req.clientId; Billing.prefilledRequestId = req.id; location.hash = '#billing/form'; });
           row.appendChild(fulfillBtn);
           banner.appendChild(row);
         });
         wrapper.appendChild(banner);
       }
-    } else if (Auth.can('billing:request')) {
-      const myPendingReqs = DB.getWhere('operationsRequests', r => r.status === 'pending' && r.type === 'billing' && r.requestedBy === Auth.user.name);
-      const reqBanner = el('div', { class: 'pending-requests-banner', style: 'background:linear-gradient(135deg,#fff8e1,#ffecb3);border:1px solid #ffc107;border-radius:var(--radius-md);padding:var(--spacing-md);margin-bottom:var(--spacing-md);display:flex;align-items:center;justify-content:space-between;' });
-      const reqInfo = el('span', { style: 'font-size:0.9rem;color:#333;' });
-      reqInfo.textContent = myPendingReqs.length > 0 ? `You have ${myPendingReqs.length} pending invoice request${myPendingReqs.length > 1 ? 's' : ''}.` : 'Need an invoice created? Submit a request to Accounting.';
-      reqBanner.appendChild(reqInfo);
-      const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Invoice from Accounting', style: 'white-space:nowrap;' });
-      reqBtn.addEventListener('click', () => { Billing.view = 'request'; App.handleRoute(); });
-      reqBanner.appendChild(reqBtn);
-      wrapper.appendChild(reqBanner);
     }
 
     // Filters
@@ -406,14 +415,14 @@ const Billing = {
       tr.appendChild(el('td')).appendChild(this.statusBadge(inv.status));
       const tdAct = el('td');
       const viewBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'View' });
-      viewBtn.addEventListener('click', () => { this.view = 'detail'; this.detailId = inv.id; App.handleRoute(); });
+      viewBtn.addEventListener('click', () => { location.hash = '#billing/detail/' + inv.id; });
       tdAct.appendChild(viewBtn);
 
       if (inv.status === 'Draft') {
         const editBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Edit', style: 'margin-left:4px;' });
         editBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.view = 'form'; this.detailId = inv.id; App.handleRoute();
+          location.hash = '#billing/form/' + inv.id;
         });
         tdAct.appendChild(editBtn);
         const trashBtn = el('button', { class: 'btn btn-danger btn-sm', text: 'Trash', style: 'margin-left:4px;' });
@@ -467,7 +476,7 @@ const Billing = {
 
         const card = el('div', { class: 'board-card-v2' });
         card.style.borderLeftColor = colColor;
-        card.addEventListener('click', () => { this.view = 'detail'; this.detailId = inv.id; App.handleRoute(); });
+        card.addEventListener('click', () => { location.hash = '#billing/detail/' + inv.id; });
 
         // Top: Info path and Issue Date
         const topRow = el('div', { class: 'card-v2-top' });
@@ -526,7 +535,7 @@ const Billing = {
           const editBtn = el('button', { class: 'btn btn-secondary btn-xs', text: 'Edit' });
           editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.view = 'form'; this.detailId = inv.id; App.handleRoute();
+            location.hash = '#billing/form/' + inv.id;
           });
           cardActions.appendChild(editBtn);
           const trashBtn = el('button', { class: 'btn btn-danger btn-xs', text: 'Trash' });
@@ -585,7 +594,7 @@ const Billing = {
         const editBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Edit' });
         editBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.view = 'form'; this.detailId = inv.id; App.handleRoute();
+          location.hash = '#billing/form/' + inv.id;
         });
         rightWrap.appendChild(editBtn);
         const trashBtn = el('button', { class: 'btn btn-danger btn-sm', text: 'Trash' });
@@ -597,7 +606,7 @@ const Billing = {
       }
 
       row.appendChild(rightWrap);
-      row.addEventListener('click', () => { this.view = 'detail'; this.detailId = inv.id; App.handleRoute(); });
+      row.addEventListener('click', () => { location.hash = '#billing/detail/' + inv.id; });
       list.appendChild(row);
     });
     container.appendChild(list);
@@ -645,7 +654,7 @@ const Billing = {
     const topActions = el('div', { class: 'form-actions-top' });
     const saveBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Save Invoice', form: 'invoice-form' });
     const cancelBtn = el('button', { type: 'button', class: 'btn btn-secondary', text: 'Cancel' });
-    cancelBtn.addEventListener('click', () => { this.view = 'list'; this.detailId = null; App.handleRoute(); });
+    cancelBtn.addEventListener('click', () => { location.hash = '#billing'; });
     topActions.appendChild(saveBtn);
     topActions.appendChild(cancelBtn);
     headerBar.appendChild(topActions);
@@ -965,9 +974,139 @@ const Billing = {
     this.prefilledWrId = null;
     this.prefilledClientId = null;
 
-    this.view = 'list';
-    this.detailId = null;
-    App.handleRoute();
+    location.hash = '#billing';
+  },
+
+  showRequestInvoiceModal() {
+    const entity = Auth.activeEntity;
+    const wrs = DB.getWhere('workRequests', wr => {
+      const wrEnt = (wr.entity || '').toUpperCase();
+      if (entity === 'ALL') return Auth.user.entities.map(ae => ae.toUpperCase()).includes(wrEnt);
+      return wrEnt === entity.toUpperCase();
+    });
+
+    const wrapper = el('div', { style: 'display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 420px; max-width: 500px;' });
+    const form = el('form', { class: 'form-stacked' });
+
+    // 1. Select Work Request
+    const wrGroup = el('div', { class: 'form-group' });
+    wrGroup.appendChild(el('label', { text: 'Select Work Request *' }));
+    const wrSelect = el('select', { name: 'workRequestId', class: 'form-select', required: true });
+    wrSelect.appendChild(el('option', { value: '', text: '— Select Work Request —' }));
+    wrs.forEach(wr => {
+      const client = DB.getById('clients', wr.clientId);
+      const pending = DB.getWhere('operationsRequests', r => r.workRequestId === wr.id && r.type === 'billing' && r.status === 'pending');
+      if (pending.length === 0) {
+        wrSelect.appendChild(el('option', { value: wr.id, text: `${wr.title} — ${client?.name || '—'}` }));
+      }
+    });
+    wrGroup.appendChild(wrSelect);
+    form.appendChild(wrGroup);
+
+    // 2. Link to Specific Task (dynamic select)
+    const taskGroup = el('div', { class: 'form-group' });
+    taskGroup.appendChild(el('label', { text: 'Link to Specific Task' }));
+    const taskSelect = el('select', { name: 'linkedTaskId', class: 'form-select' });
+    taskSelect.appendChild(el('option', { value: '', text: '— Whole Project —' }));
+    taskGroup.appendChild(taskSelect);
+    form.appendChild(taskGroup);
+
+    const updateTasks = () => {
+      while (taskSelect.firstChild) taskSelect.removeChild(taskSelect.firstChild);
+      taskSelect.appendChild(el('option', { value: '', text: '— Whole Project —' }));
+      const wrId = wrSelect.value;
+      if (wrId) {
+        const tasks = DB.getWhere('tasks', t => t.workRequestId === wrId) || [];
+        tasks.forEach(t => {
+          taskSelect.appendChild(el('option', { value: t.id, text: t.title }));
+        });
+      }
+    };
+    wrSelect.addEventListener('change', updateTasks);
+
+    // 3. Billing Amount
+    const amtGroup = el('div', { class: 'form-group' });
+    amtGroup.appendChild(el('label', { text: 'Billing Amount (₱) *' }));
+    const amtIn = el('input', { type: 'text', inputmode: 'decimal', name: 'amount', placeholder: '0.00', required: true });
+    amtIn.addEventListener('input', () => { amtIn.value = amtIn.value.replace(/[^0-9.,]/g, ''); });
+    amtIn.addEventListener('focus', () => { const n = parseFloat(String(amtIn.value).replace(/[₱$,\s]/g, '')) || 0; amtIn.value = n > 0 ? String(n) : ''; });
+    amtIn.addEventListener('blur', () => { const n = parseFloat(String(amtIn.value).replace(/[₱$,\s]/g, '')) || 0; amtIn.value = n > 0 ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; });
+    amtGroup.appendChild(amtIn);
+    form.appendChild(amtGroup);
+
+    // 4. Attachment / Proof
+    const fileGroup = el('div', { class: 'form-group' });
+    fileGroup.appendChild(el('label', { text: 'Proof of Completion (optional)' }));
+    const fileIn = el('input', { type: 'file', name: 'receipt' });
+    fileGroup.appendChild(fileIn);
+    form.appendChild(fileGroup);
+
+    // 5. Notes
+    const notesGroup = el('div', { class: 'form-group' });
+    notesGroup.appendChild(el('label', { text: 'Billing Notes (Optional)' }));
+    const notesArea = el('textarea', { name: 'notes', class: 'form-control', style: 'min-height: 80px;', placeholder: 'e.g. Requesting milestone Downpayment billing...' });
+    notesGroup.appendChild(notesArea);
+    form.appendChild(notesGroup);
+
+    // Footer actions
+    const footer = el('div', { style: 'display: flex; justify-content: flex-end; gap: 8px; margin-top: var(--spacing-md); border-top: 1px solid var(--color-border); padding-top: var(--spacing-sm);' }, [
+      el('button', { id: 'btn-cancel-opreq', class: 'btn btn-ghost', type: 'button', text: 'Cancel' }),
+      el('button', { id: 'btn-save-opreq', class: 'btn btn-primary', type: 'submit', text: 'Submit Request' })
+    ]);
+    form.appendChild(footer);
+    wrapper.appendChild(form);
+
+    const overlay = Workflow.showModal('Request Invoice from Accounting', wrapper);
+
+    overlay.querySelector('#btn-cancel-opreq').addEventListener('click', () => overlay.remove());
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const wrId = wrSelect.value;
+      if (!wrId) {
+        Workflow.showMessage('Validation Error', 'Please select a work request.', 'warning');
+        return;
+      }
+      const wr = DB.getById('workRequests', wrId);
+
+      const amtStr = amtIn.value;
+      const amount = parseFloat(amtStr.replace(/[₱$,\s]/g, '')) || 0;
+      if (amount <= 0) {
+        Workflow.showMessage('Validation Error', 'Please enter a valid billing amount.', 'warning');
+        return;
+      }
+
+      const linkedTaskId = taskSelect.value;
+      const notes = notesArea.value.trim();
+      const receiptFile = fileIn.files?.[0];
+
+      const record = {
+        id: generateId('opreq'),
+        type: 'billing',
+        workRequestId: wrId,
+        clientId: wr.clientId,
+        requestedBy: Auth.user.id,
+        requestedAt: new Date().toISOString(),
+        status: 'pending',
+        rejectionReason: '',
+        linkedTaskId: linkedTaskId || '',
+        amount: amount,
+        notes: notes,
+        receiptFilename: receiptFile ? receiptFile.name : null
+      };
+
+      DB.insert('operationsRequests', record);
+      overlay.remove();
+
+      Workflow.showMessage(
+        'Request Submitted',
+        'Your invoice request has been submitted to Accounting for review.',
+        'success'
+      );
+
+      App.handleRoute();
+    });
   },
 
   // ============================================================
@@ -975,7 +1114,7 @@ const Billing = {
   // ============================================================
   renderDetail() {
     const inv = this.getInvoiceById(this.detailId);
-    if (!inv) { this.view = 'list'; App.handleRoute(); return el('div'); }
+    if (!inv) { location.hash = '#billing'; return el('div'); }
     const client = DB.getById('clients', inv.clientId);
 
     const container = el('div', { class: 'invoice-detail' });
@@ -1032,9 +1171,7 @@ const Billing = {
           style: 'color:#2563eb;font-weight:500;text-decoration:none;'
         });
         wrLink.addEventListener('click', () => {
-          Workflow.view = 'detail';
-          Workflow.detailWrId = linkedWr.id;
-          location.hash = '#workflow';
+          location.hash = '#operations/detail/' + linkedWr.id;
         });
         wrLink.addEventListener('mouseenter', () => { wrLink.style.textDecoration = 'underline'; });
         wrLink.addEventListener('mouseleave', () => { wrLink.style.textDecoration = 'none'; });
@@ -1847,7 +1984,16 @@ const Billing = {
 
   showTemplateForm(existing = null) {
     const entity = Auth.activeEntity;
-    const form = el('form', { class: 'form-stacked' });
+    const container = el('div');
+
+    // Notion-style title section
+    const titleSec = el('div', { class: 'side-pane-form-title' });
+    titleSec.appendChild(el('div', { class: 'side-pane-icon', text: '📋' }));
+    titleSec.appendChild(el('h2', { text: existing ? 'Edit Template' : 'New Billing Template' }));
+    container.appendChild(titleSec);
+
+    const formWrap = el('div', { class: 'side-pane-form-content' });
+    const form = el('form', { class: 'form-stacked', id: 'billing-tpl-form' });
     
     form.appendChild(el('div', { class: 'form-group' }, [el('label', { text: 'Template Name *' }), el('input', { type: 'text', name: 'name', required: true, value: existing?.name || '' })]));
 
@@ -1876,11 +2022,6 @@ const Billing = {
 
     form.appendChild(el('div', { class: 'form-group' }, [el('label', { text: 'Professional Fee Amount *' }), el('input', { type: 'number', name: 'pfAmount', min: 0, step: 0.01, required: true, value: existing?.pfAmount || '' })]));
 
-    const submitBtn = el('button', { type: 'submit', class: 'btn btn-primary', text: 'Save Template' });
-    form.appendChild(submitBtn);
-
-    const overlay = Workflow.showModal(existing ? 'Edit Template' : 'New Billing Template', form);
-
     form.addEventListener('submit', e => {
       e.preventDefault();
       const fd = new FormData(form);
@@ -1903,9 +2044,22 @@ const Billing = {
         record.createdAt = new Date().toISOString();
         DB.insert('billingTemplates', record);
       }
-      overlay.remove();
+      window.SidePaneInstance.close();
       App.handleRoute();
     });
+
+    formWrap.appendChild(form);
+    container.appendChild(formWrap);
+
+    // Sticky footer
+    const footer = el('div', { class: 'side-pane-form-footer' });
+    footer.appendChild(el('button', { type: 'submit', form: 'billing-tpl-form', class: 'btn btn-primary', text: 'Save Template' }));
+    const cancelBtn = el('button', { type: 'button', class: 'btn btn-secondary', text: 'Cancel' });
+    cancelBtn.addEventListener('click', () => window.SidePaneInstance.close());
+    footer.appendChild(cancelBtn);
+    container.appendChild(footer);
+
+    window.SidePaneInstance.open({ content: container });
   },
 
   generateFromTemplate(t) {
@@ -2036,12 +2190,6 @@ const Billing = {
     });
 
     const container = el('div');
-    const topActions = el('div', { class: 'form-header-bar', style: 'margin-bottom: var(--spacing-lg);' });
-    topActions.appendChild(el('h2', { text: 'Aging Report' }));
-    const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to List' });
-    backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-    topActions.appendChild(backBtn);
-    container.appendChild(topActions);
 
     const grid = el('div', { class: 'kpi-grid' });
     Object.entries(buckets).forEach(([label, invs]) => {

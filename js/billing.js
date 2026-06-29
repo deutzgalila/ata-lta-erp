@@ -481,16 +481,31 @@ const Billing = {
       titleWrap.appendChild(document.createTextNode(st));
       titleWrap.appendChild(el('span', { class: 'board-column-count', text: String(colInvs.length) }));
       header.appendChild(titleWrap);
-
-      const addBtnCol = el('button', { class: 'board-column-add', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' });
-      addBtnCol.title = 'Add invoice to ' + st;
-      header.appendChild(addBtnCol);
-
       col.appendChild(header);
 
       const cardContainer = el('div', { class: 'board-cards-scroll' });
 
-      if (colInvs.length === 0) {
+      if (st === 'Draft') {
+        const addCard = el('div', {
+          class: 'board-card-v2 add-billing-card',
+          style: 'border: 1px dashed var(--color-primary, #2563eb); background: rgba(37, 99, 235, 0.02); display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-weight: 600; color: var(--color-primary, #2563eb); margin-bottom: var(--spacing-sm, 12px); cursor: pointer;'
+        });
+        addCard.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Billing';
+        addCard.addEventListener('click', () => {
+          this.detailId = null;
+          openFormPanel({
+            icon: '🧾', title: 'Create Sales Invoice',
+            formContent: this.renderForm(), formId: 'invoice-form',
+            actions: [
+              { text: 'Save Invoice', class: 'btn btn-primary', type: 'submit', form: 'invoice-form' },
+              { text: 'Cancel', class: 'btn btn-secondary', onClick: () => closeFormPanelAndRoute('#billing') }
+            ]
+          });
+        });
+        cardContainer.appendChild(addCard);
+      }
+
+      if (colInvs.length === 0 && st !== 'Draft') {
         cardContainer.appendChild(el('div', { class: 'empty-state', text: 'No invoices' }));
       }
 

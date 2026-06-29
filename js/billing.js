@@ -78,10 +78,33 @@ const Billing = {
     else if (this.view === 'templates') container.appendChild(this.renderTemplates());
     else if (this.view === 'trash') container.appendChild(this.renderTrash());
 
+    setTimeout(() => this.updateStickyOffsets(), 0);
     return container;
   },
 
-  init() {},
+  init() {
+    this.updateStickyOffsets();
+    window.addEventListener('resize', () => this.updateStickyOffsets());
+    window.addEventListener('scroll', () => this.updateStickyOffsets());
+    window.addEventListener('load', () => this.updateStickyOffsets());
+  },
+
+  updateStickyOffsets() {
+    const titleBar = document.querySelector('.page-title-bar-v2');
+    let titleBarHeight = 48; // default fallback
+    if (titleBar) {
+      // Subtract the -20px top offset
+      titleBarHeight = titleBar.getBoundingClientRect().height - 20;
+    }
+    document.documentElement.style.setProperty('--billing-title-bar-height', `${titleBarHeight}px`);
+
+    const tabNav = document.querySelector('.module-tab-nav');
+    let tabNavHeight = 45; // default fallback
+    if (tabNav) {
+      tabNavHeight = tabNav.getBoundingClientRect().height;
+    }
+    document.documentElement.style.setProperty('--billing-tab-nav-height', `${tabNavHeight}px`);
+  },
 
   renderTabNav() {
     const entity = Auth.activeEntity;

@@ -1132,7 +1132,7 @@ tbody tr:hover {
   border-bottom: 1px solid #d1d5db;
   margin-bottom: 12px;
   position: sticky;
-  top: 48px;
+  top: var(--billing-title-bar-height, 48px);
   z-index: 25;
   background: var(--color-bg, #f4f6fb);
   padding-top: 8px;
@@ -1140,7 +1140,7 @@ tbody tr:hover {
 }
 
 .billing-tab-page .filters-bar {
-  top: 93px;
+  top: calc(var(--billing-title-bar-height, 48px) + var(--billing-tab-nav-height, 45px));
   z-index: 24;
 }
 

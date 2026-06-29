@@ -1154,6 +1154,10 @@ tbody tr:hover {
   top: var(--transmittal-title-bar-height, 48px);
 }
 
+.clients-tab-page .module-tab-nav {
+  top: var(--clients-title-bar-height, 48px);
+}
+
 .billing-tab-page .board-v2 {
   overflow: visible;
   min-height: auto;
@@ -1316,6 +1320,24 @@ tbody tr:hover {
   position: sticky;
   top: calc(var(--transmittal-title-bar-height, 48px) + var(--transmittal-tab-nav-height, 45px) + var(--transmittal-toolbar-height, 0px));
   z-index: 20;
+}
+
+.clients-tab-page .toolbar-sticky-container {
+  position: sticky;
+  top: calc(var(--clients-title-bar-height, 48px) + var(--clients-tab-nav-height, 45px));
+  z-index: 24;
+  background: var(--color-bg, #f4f6fb);
+  padding-top: 8px;
+  padding-bottom: 12px;
+  margin-top: -8px;
+  margin-bottom: 16px;
+}
+
+.clients-tab-page .toolbar-sticky-container .filters-bar {
+  position: static;
+  margin-bottom: 0;
+  background: transparent;
+  padding: 0;
 }
 .module-tab-link {
   display: inline-flex;

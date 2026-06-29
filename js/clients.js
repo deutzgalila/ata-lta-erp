@@ -34,44 +34,25 @@ const Clients = {
 
       return container;
     } else {
-      container.appendChild(el('h1', { text: 'Clients' }));
+      container.classList.add('clients-tab-page');
+      const titleBar = el('div', { class: 'page-title-bar-v2' });
+      titleBar.appendChild(el('h1', { text: 'Clients' }));
+      container.appendChild(titleBar);
+      container.appendChild(this.renderTabNav());
     }
 
-    // Tabs
-    const tabs = el('div', { class: 'admin-tabs clients-tabs-bar', style: 'margin-bottom: 20px;' });
-    const activeTabBtn = el('button', {
-      class: 'btn ' + (this.activeTab === 'active' ? 'btn-primary' : 'btn-secondary'),
-      text: 'Active Clients'
+    // Toolbar (Sticky Container)
+    const stickyContainer = el('div', { class: 'toolbar-sticky-container' });
+    const filters = el('div', { class: 'filters-bar' });
+    const search = el('input', {
+      type: 'text',
+      placeholder: 'Search by taxpayer, trade name, or TIN...',
+      class: 'form-control search-input',
+      style: 'max-width: 320px;'
     });
-    activeTabBtn.addEventListener('click', () => {
-      this.activeTab = 'active';
-      this.showList();
-    });
-    tabs.appendChild(activeTabBtn);
-
-    const archivedTabBtn = el('button', {
-      class: 'btn ' + (this.activeTab === 'archived' ? 'btn-primary' : 'btn-secondary'),
-      text: 'Archived Clients'
-    });
-    archivedTabBtn.addEventListener('click', () => {
-      this.activeTab = 'archived';
-      this.showList();
-    });
-    tabs.appendChild(archivedTabBtn);
-    container.appendChild(tabs);
-
-    const actions = el('div', { class: 'actions-bar' + (this.activeTab === 'archived' ? ' hidden' : '') });
-
-    if (Auth.can('clients:edit')) {
-      const addBtn = el('button', { class: 'btn btn-primary', text: 'Add Client' });
-      addBtn.addEventListener('click', () => this.showForm());
-      actions.appendChild(addBtn);
-    }
-
-    const search = el('input', { type: 'text', placeholder: 'Search by taxpayer or TIN...', class: 'search-input' });
-    search.addEventListener('input', debounce(() => this.renderList(listContainer, search.value.trim()), 200));
-    actions.appendChild(search);
-    container.appendChild(actions);
+    filters.appendChild(search);
+    stickyContainer.appendChild(filters);
+    container.appendChild(stickyContainer);
 
     const listContainer = el('div', { class: 'list-container' + (this.activeTab === 'archived' ? ' hidden' : '') });
     container.appendChild(listContainer);
@@ -82,16 +63,102 @@ const Clients = {
     const archiveContainer = el('div', { class: 'archive-container' + (this.activeTab === 'active' ? ' hidden' : '') });
     container.appendChild(archiveContainer);
     if (this.activeTab === 'archived') {
-      this.renderArchive(archiveContainer);
+      this.renderArchive(archiveContainer, '');
     }
+
+    search.addEventListener('input', debounce(() => {
+      const q = search.value.trim();
+      if (this.activeTab === 'active') {
+        this.renderList(listContainer, q);
+      } else {
+        this.renderArchive(archiveContainer, q);
+      }
+    }, 200));
 
     const formContainer = el('div', { class: 'form-container hidden' });
     container.appendChild(formContainer);
 
+    setTimeout(() => this.updateStickyOffsets(), 0);
     return container;
   },
 
-  init() {},
+  init() {
+    this.updateStickyOffsets();
+    window.addEventListener('resize', () => this.updateStickyOffsets());
+    window.addEventListener('scroll', () => this.updateStickyOffsets());
+    window.addEventListener('load', () => this.updateStickyOffsets());
+  },
+
+  updateStickyOffsets() {
+    const titleBar = document.querySelector('.page-title-bar-v2');
+    let titleBarHeight = 48; // default fallback
+    if (titleBar) {
+      // Subtract the -20px top offset
+      titleBarHeight = titleBar.getBoundingClientRect().height - 20;
+    }
+    document.documentElement.style.setProperty('--clients-title-bar-height', `${titleBarHeight}px`);
+
+    const tabNav = document.querySelector('.module-tab-nav');
+    let tabNavHeight = 45; // default fallback
+    if (tabNav) {
+      tabNavHeight = tabNav.getBoundingClientRect().height;
+    }
+    document.documentElement.style.setProperty('--clients-tab-nav-height', `${tabNavHeight}px`);
+
+    const toolbar = document.querySelector('.clients-tab-page .toolbar-sticky-container');
+    let toolbarHeight = 0;
+    if (toolbar) {
+      toolbarHeight = toolbar.getBoundingClientRect().height;
+    }
+    document.documentElement.style.setProperty('--clients-toolbar-height', `${toolbarHeight}px`);
+  },
+
+  renderTabNav() {
+    const tabNav = el('div', { class: 'module-tab-nav' });
+
+    const entity = Auth.activeEntity;
+    const activeCount = DB.getWhere('clients', c => {
+      const cEnt = (c.entity || '').toUpperCase();
+      const matchesEntity = (entity === 'ALL' ? Auth.user.entities.map(ae => ae.toUpperCase()).includes(cEnt) : cEnt === entity.toUpperCase());
+      return matchesEntity && c.status !== 'Archived';
+    }).length;
+
+    const archivedCount = DB.getWhere('clients', c => {
+      const cEnt = (c.entity || '').toUpperCase();
+      const matchesEntity = (entity === 'ALL' ? Auth.user.entities.map(ae => ae.toUpperCase()).includes(cEnt) : cEnt === entity.toUpperCase());
+      return matchesEntity && c.status === 'Archived';
+    }).length;
+
+    const tabs = [
+      { key: 'active', label: 'Active Clients', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', count: activeCount },
+      { key: 'archived', label: 'Archived Clients', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>', count: archivedCount }
+    ];
+
+    tabs.forEach(tab => {
+      const btn = el('button', { class: 'module-tab-link' + (this.activeTab === tab.key ? ' active' : '') });
+      btn.innerHTML = tab.icon + ' ' + tab.label;
+      if (tab.count !== undefined) {
+        btn.innerHTML += ' <span class="module-badge-count">' + tab.count + '</span>';
+      }
+      btn.addEventListener('click', () => {
+        this.activeTab = tab.key;
+        App.handleRoute();
+      });
+      tabNav.appendChild(btn);
+    });
+
+    if (Auth.can('clients:edit') && this.activeTab === 'active') {
+      const addBtn = el('button', {
+        class: 'btn btn-primary btn-sm',
+        style: 'margin-left: 16px; display: inline-flex; align-items: center; gap: 6px;',
+        html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Client'
+      });
+      addBtn.addEventListener('click', () => this.showForm());
+      tabNav.appendChild(addBtn);
+    }
+
+    return tabNav;
+  },
 
   clearNode(node) {
     while (node.firstChild) node.removeChild(node.firstChild);
@@ -604,12 +671,21 @@ const Clients = {
     App.handleRoute();
   },
 
-  getArchivedClients() {
+  getArchivedClients(query) {
     const entity = Auth.activeEntity;
     let clients = DB.getWhere('clients', c => {
       const matchesEntity = (entity === 'ALL' ? Auth.user.entities.includes(c.entity) : c.entity === entity);
       return matchesEntity && c.status === 'Archived';
     });
+
+    if (query) {
+      const q = query.toLowerCase();
+      clients = clients.filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.tradeName || '').toLowerCase().includes(q) ||
+        (c.tin || '').toLowerCase().includes(q)
+      );
+    }
 
     // Staff-level visibility filter
     if (!Auth.can('clients:edit')) {
@@ -628,9 +704,9 @@ const Clients = {
     return clients;
   },
 
-  renderArchive(container) {
+  renderArchive(container, query) {
     this.clearNode(container);
-    const archivedClients = this.getArchivedClients();
+    const archivedClients = this.getArchivedClients(query);
 
     if (archivedClients.length === 0) {
       container.appendChild(el('p', { text: 'No archived clients found.', class: 'empty-state' }));

@@ -23,9 +23,39 @@ const Transmittal = {
       h1.appendChild(document.createTextNode(t?.trackingNumber || 'Detail'));
       titleBar.appendChild(h1);
       
+      const actions = el('div', { class: 'title-bar-actions' });
+      if (t) {
+        const printBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Print Transmittal', style: 'margin-right:8px;' });
+        printBtn.addEventListener('click', () => this.openPrintLetter(t));
+        actions.appendChild(printBtn);
+
+        if (Auth.can('transmittal:edit')) {
+          if (t.status === 'Draft') {
+            const sendBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Mark as Sent', style: 'margin-right:8px;' });
+            sendBtn.addEventListener('click', () => {
+              Workflow.showConfirm('Confirm Sent', 'Are you sure you want to mark this transmittal as sent?', () => {
+                DB.update('transmittals', t.id, {
+                  status: 'Sent',
+                  sentAt: new Date().toISOString(),
+                  sentBy: Auth.user.id
+                });
+                App.handleRoute();
+              }, 'success');
+            });
+            actions.appendChild(sendBtn);
+          } else if (t.status === 'Sent') {
+            const ackBtn = el('button', { class: 'btn btn-success btn-sm', text: 'Acknowledge Receipt', style: 'margin-right:8px;' });
+            ackBtn.addEventListener('click', () => {
+              this.showAcknowledgeDialog(t.id);
+            });
+            actions.appendChild(ackBtn);
+          }
+        }
+      }
       const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to List' });
       backBtn.addEventListener('click', () => { location.hash = '#transmittal'; });
-      titleBar.appendChild(backBtn);
+      actions.appendChild(backBtn);
+      titleBar.appendChild(actions);
       container.appendChild(titleBar);
     } else {
       container.appendChild(el('h1', { text: 'Transmittal' }));
@@ -758,18 +788,6 @@ const Transmittal = {
 
     const container = el('div', { class: 'invoice-detail' });
 
-    // Top actions bar
-    const topActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-lg);' });
-    const topBackBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to List' });
-    topBackBtn.addEventListener('click', () => { location.hash = '#transmittal'; });
-    topActions.appendChild(topBackBtn);
-
-    const printBtn = el('button', { class: 'btn btn-secondary btn-sm', text: 'Print Transmittal' });
-    printBtn.addEventListener('click', () => this.openPrintLetter(t));
-    topActions.appendChild(printBtn);
-
-    container.appendChild(topActions);
-
     // Header
     const header = el('div', { class: 'invoice-header' });
     header.appendChild(el('h2', { text: 'Transmittal ' + t.trackingNumber }));
@@ -786,7 +804,7 @@ const Transmittal = {
     }
     if (t.acknowledgedAt) {
       const ackBy = DB.getById('users', t.acknowledgedBy);
-      meta.appendChild(el('p', { text: 'Acknowledged: ' + formatDate(t.acknowledgedAt) + ' by ' + (ackBy?.name || '—') }));
+      meta.appendChild(el('p', { text: 'Acknowledged: ' + formatDate(t.acknowledgedAt) + ' by ' + (ackBy?.name || '—') + (t.receivedByName ? ` (Received by: ${t.receivedByName})` : '') }));
     }
     if (t.notes) meta.appendChild(el('p', { text: 'Notes: ' + t.notes }));
     container.appendChild(meta);
@@ -797,61 +815,43 @@ const Transmittal = {
     letterSection.appendChild(this.buildLetterPreview(t));
     container.appendChild(letterSection);
 
-    // Actions
-    const actions = el('div', { class: 'form-actions', style: 'margin-top: var(--spacing-lg); border-top: 1px solid var(--color-border); padding-top: var(--spacing-lg);' });
-
-    if (Auth.can('transmittal:edit')) {
-      if (t.status === 'Draft') {
-        const sendBtn = el('button', { class: 'btn btn-primary', text: 'Mark as Sent' });
-        sendBtn.addEventListener('click', () => {
-          Workflow.showConfirm('Confirm Sent', 'Are you sure you want to mark this transmittal as sent?', () => {
-            DB.update('transmittals', t.id, {
-              status: 'Sent',
-              sentAt: new Date().toISOString(),
-              sentBy: Auth.user.id
-            });
-            App.handleRoute();
-          }, 'success');
-        });
-        actions.appendChild(sendBtn);
-      } else if (t.status === 'Sent') {
-        const ackSection = el('div', { class: 'form-section' });
-        ackSection.appendChild(el('h4', { text: 'Acknowledgment' }));
-        const ackForm = el('form', { class: 'form-stacked' });
-
-        const nameGroup = el('div', { class: 'form-group' });
-        nameGroup.appendChild(el('label', { text: 'Received By (Name) *' }));
-        nameGroup.appendChild(el('input', { type: 'text', name: 'receivedBy', required: true }));
-        ackForm.appendChild(nameGroup);
-
-        const dateGroup = el('div', { class: 'form-group' });
-        dateGroup.appendChild(el('label', { text: 'Received Date *' }));
-        dateGroup.appendChild(el('input', { type: 'date', name: 'receivedDate', required: true, value: new Date().toISOString().slice(0, 10) }));
-        ackForm.appendChild(dateGroup);
-
-        const ackBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Mark as Acknowledged' });
-        ackForm.appendChild(ackBtn);
-
-        ackForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          if (!validateRequiredFields(ackForm)) return;
-          const fd = new FormData(ackForm);
-          DB.update('transmittals', t.id, {
-            status: 'Acknowledged',
-            acknowledgedAt: fd.get('receivedDate'),
-            acknowledgedBy: Auth.user.id,
-            receivedByName: fd.get('receivedBy')
-          });
-          App.handleRoute();
-        });
-
-        ackSection.appendChild(ackForm);
-        actions.appendChild(ackSection);
-      }
-    }
-
-    container.appendChild(actions);
     return container;
+  },
+
+  showAcknowledgeDialog(id) {
+    const t = DB.getById('transmittals', id);
+    if (!t) return;
+
+    const form = el('form', { class: 'form-stacked' });
+
+    const nameGroup = el('div', { class: 'form-group' });
+    nameGroup.appendChild(el('label', { text: 'Received By (Name) *' }));
+    nameGroup.appendChild(el('input', { type: 'text', name: 'receivedBy', required: true, class: 'form-control' }));
+    form.appendChild(nameGroup);
+
+    const dateGroup = el('div', { class: 'form-group' });
+    dateGroup.appendChild(el('label', { text: 'Received Date *' }));
+    dateGroup.appendChild(el('input', { type: 'date', name: 'receivedDate', required: true, class: 'form-control', value: new Date().toISOString().slice(0, 10) }));
+    form.appendChild(dateGroup);
+
+    const submitBtn = el('button', { type: 'submit', class: 'btn btn-success', text: 'Confirm Acknowledgment', style: 'margin-top: 12px;' });
+    form.appendChild(submitBtn);
+
+    const overlay = Workflow.showModal('Acknowledge Transmittal Receipt', form);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!validateRequiredFields(form)) return;
+      const fd = new FormData(form);
+      DB.update('transmittals', t.id, {
+        status: 'Acknowledged',
+        acknowledgedAt: fd.get('receivedDate'),
+        acknowledgedBy: Auth.user.id,
+        receivedByName: fd.get('receivedBy')
+      });
+      overlay.remove();
+      App.handleRoute();
+    });
   },
 
   buildLetterPreview(t) {

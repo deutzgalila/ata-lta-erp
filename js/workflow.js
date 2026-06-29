@@ -1545,7 +1545,7 @@ const Workflow = {
 
     const clearBtn = el('button', {
       class: 'btn btn-secondary btn-sm',
-      html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>Clear'
+      html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 .49-3.5"></path></svg>Clear'
     });
     clearBtn.addEventListener('click', () => {
       priorityFilter.value = '';
@@ -1799,12 +1799,21 @@ const Workflow = {
       const col = el('div', { class: 'board-column-v2' });
       col.style.setProperty('--column-phase-color', colColor);
       
+      const colWrs = wrs.filter(wr => wr.status === st);
+
       const header = el('div', { class: 'board-column-header-v2' });
-      header.appendChild(el('div', { class: 'board-column-title', text: st }));
+      const titleWrap = el('div', { class: 'board-column-title' });
+      titleWrap.appendChild(el('span', { class: 'board-column-dot', style: 'background:' + colColor + ';' }));
+      titleWrap.appendChild(document.createTextNode(st));
+      titleWrap.appendChild(el('span', { class: 'board-column-count', text: String(colWrs.length) }));
+      header.appendChild(titleWrap);
       col.appendChild(header);
 
-      const colWrs = wrs.filter(wr => wr.status === st);
       const cardContainer = el('div', { class: 'board-cards-scroll' });
+
+      if (colWrs.length === 0) {
+        cardContainer.appendChild(el('div', { class: 'empty-state', text: 'No work requests' }));
+      }
 
       colWrs.forEach(wr => {
         const tasks = wr.isPendingApproval ? (wr.tasks || []) : DB.getWhere('tasks', t => t.workRequestId === wr.id);
@@ -4588,7 +4597,7 @@ const Workflow = {
       });
 
       if (this.taskViewMode === 'board') {
-        const board = el('div', { class: 'board-v2', style: 'margin-top: 0; display: flex; gap: var(--space-4);' });
+        const board = el('div', { class: 'board-v2', style: 'margin-top: 0;' });
         const statuses = ['Draft', 'Assigned', 'In Progress', 'For Review', 'Completed', 'Cancelled'];
         const statusColors = {
           'Draft': '#94a3b8',
@@ -4601,15 +4610,23 @@ const Workflow = {
 
         statuses.forEach(st => {
           const colColor = statusColors[st] || '#cbd5e1';
-          const col = el('div', { class: 'board-column-v2', style: 'flex: 1; min-width: 0;' });
+          const colTasks = filteredTasks.filter(t => t.status === st);
+          const col = el('div', { class: 'board-column-v2' });
           col.style.setProperty('--column-phase-color', colColor);
           
           const header = el('div', { class: 'board-column-header-v2' });
-          const colTasks = filteredTasks.filter(t => t.status === st);
-          header.appendChild(el('div', { class: 'board-column-title', text: `${st} (${colTasks.length})` }));
+          const titleWrap = el('div', { class: 'board-column-title' });
+          titleWrap.appendChild(el('span', { class: 'board-column-dot', style: 'background:' + colColor + ';' }));
+          titleWrap.appendChild(document.createTextNode(st));
+          titleWrap.appendChild(el('span', { class: 'board-column-count', text: String(colTasks.length) }));
+          header.appendChild(titleWrap);
           col.appendChild(header);
 
           const cardContainer = el('div', { class: 'board-cards-scroll', style: 'display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3);' });
+
+          if (colTasks.length === 0) {
+            cardContainer.appendChild(el('div', { class: 'empty-state', text: 'No tasks' }));
+          }
 
           colTasks.forEach(t => {
             const card = el('div', { class: 'board-card board-card-v2', style: 'cursor: pointer;' });

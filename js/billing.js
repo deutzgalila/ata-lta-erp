@@ -60,50 +60,40 @@ const Billing = {
       actions.appendChild(backBtn);
       titleBar.appendChild(actions);
       container.appendChild(titleBar);
-    } else if (this.view === 'templates') {
-      const titleBar = el('div', { class: 'page-title-bar-v2' });
-      const h1 = el('h1', { class: 'breadcrumb-h1' });
-      const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Billing' });
-      baseLink.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-      h1.appendChild(baseLink);
-      h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
-      h1.appendChild(document.createTextNode('Templates'));
-      titleBar.appendChild(h1);
-
-      const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Invoices' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-      titleBar.appendChild(backBtn);
-      container.appendChild(titleBar);
-    } else if (this.view === 'trash') {
-      const titleBar = el('div', { class: 'page-title-bar-v2' });
-      const h1 = el('h1', { class: 'breadcrumb-h1' });
-      const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Billing' });
-      baseLink.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-      h1.appendChild(baseLink);
-      h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
-      h1.appendChild(document.createTextNode('Trash'));
-      titleBar.appendChild(h1);
-
-      const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Invoices' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-      titleBar.appendChild(backBtn);
-      container.appendChild(titleBar);
-    } else if (this.view === 'aging') {
-      const titleBar = el('div', { class: 'page-title-bar-v2' });
-      const h1 = el('h1', { class: 'breadcrumb-h1' });
-      const baseLink = el('a', { href: 'javascript:void(0)', class: 'breadcrumb-base', text: 'Billing' });
-      baseLink.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-      h1.appendChild(baseLink);
-      h1.appendChild(el('span', { class: 'breadcrumb-sep', text: ' / ' }));
-      h1.appendChild(document.createTextNode('Aging Report'));
-      titleBar.appendChild(h1);
-
-      const backBtn = el('button', { class: 'btn btn-secondary btn-sm', text: '← Back to Invoices' });
-      backBtn.addEventListener('click', () => { this.view = 'list'; App.handleRoute(); });
-      titleBar.appendChild(backBtn);
-      container.appendChild(titleBar);
     } else {
-      container.appendChild(el('h1', { text: 'Billing' }));
+      // Tab views: list, templates, aging, trash
+      const titleBar = el('div', { class: 'page-title-bar-v2' });
+      titleBar.appendChild(el('h1', { text: 'Billing' }));
+
+      const titleActions = el('div', { class: 'title-bar-actions' });
+      if (Auth.can('billing:edit')) {
+        const templatesBtn = el('button', { class: 'btn btn-secondary', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg> Templates' });
+        templatesBtn.addEventListener('click', () => { this.view = 'templates'; App.handleRoute(); });
+        titleActions.appendChild(templatesBtn);
+      }
+      const agingBtn = el('button', { class: 'btn btn-secondary', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Aging Report' });
+      agingBtn.addEventListener('click', () => { this.view = 'aging'; App.handleRoute(); });
+      titleActions.appendChild(agingBtn);
+      if (Auth.can('billing:edit')) {
+        const addBtn = el('button', { class: 'btn btn-primary', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Invoice' });
+        addBtn.addEventListener('click', () => {
+          this.detailId = null;
+          openFormPanel({
+            icon: '🧾', title: 'Create Sales Invoice',
+            formContent: this.renderForm(), formId: 'invoice-form',
+            actions: [
+              { text: 'Save Invoice', class: 'btn btn-primary', type: 'submit', form: 'invoice-form' },
+              { text: 'Cancel', class: 'btn btn-secondary', onClick: () => closeFormPanelAndRoute('#billing') }
+            ]
+          });
+        });
+        titleActions.appendChild(addBtn);
+      }
+      titleBar.appendChild(titleActions);
+      container.appendChild(titleBar);
+
+      // Tab navigation
+      container.appendChild(this.renderTabNav());
     }
 
     if (this.view === 'list') container.appendChild(this.renderList());
@@ -117,6 +107,45 @@ const Billing = {
   },
 
   init() {},
+
+  renderTabNav() {
+    const entity = Auth.activeEntity;
+    const tabNav = el('div', { class: 'module-tab-nav' });
+
+    const invoiceCount = DB.getWhere('invoices', inv => {
+      const matchesEntity = (entity === 'ALL' ? Auth.user.entities.includes(inv.entity) : inv.entity === entity);
+      return matchesEntity && inv.status !== 'Cancelled';
+    }).length + DB.getWhere('pendingChanges', pc => pc.table === 'invoices' && pc.status === 'pending').length;
+
+    const templateCount = (DB.getAll('billingTemplates') || []).length;
+
+    const trashCount = DB.getWhere('invoices', inv => {
+      const matchesEntity = (entity === 'ALL' ? Auth.user.entities.includes(inv.entity) : inv.entity === entity);
+      return matchesEntity && inv.status === 'Cancelled';
+    }).length;
+
+    const tabs = [
+      { key: 'list', label: 'Invoices', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>', count: invoiceCount },
+      { key: 'templates', label: 'Templates', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>', count: templateCount },
+      { key: 'aging', label: 'Aging Report', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+      { key: 'trash', label: 'Trash', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>', count: trashCount }
+    ];
+
+    tabs.forEach(tab => {
+      const btn = el('button', { class: 'module-tab-link' + (this.view === tab.key ? ' active' : '') });
+      btn.innerHTML = tab.icon + ' ' + tab.label;
+      if (tab.count !== undefined) {
+        btn.innerHTML += ' <span class="module-badge-count">' + tab.count + '</span>';
+      }
+      btn.addEventListener('click', () => {
+        this.view = tab.key;
+        App.handleRoute();
+      });
+      tabNav.appendChild(btn);
+    });
+
+    return tabNav;
+  },
 
   getPaidAmount(inv) {
     if (Array.isArray(inv.payments)) {
@@ -140,40 +169,14 @@ const Billing = {
     const entity = Auth.activeEntity;
     const wrapper = el('div');
 
-    // Actions bar
-    const actions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-md);' });
-    if (Auth.can('billing:edit')) {
-      const addBtn = el('button', { class: 'btn btn-primary', text: 'Create Invoice' });
-      addBtn.addEventListener('click', () => {
-        this.detailId = null;
-        openFormPanel({
-          icon: '🧾', title: 'Create Sales Invoice',
-          formContent: this.renderForm(), formId: 'invoice-form',
-          actions: [
-            { text: 'Save Invoice', class: 'btn btn-primary', type: 'submit', form: 'invoice-form' },
-            { text: 'Cancel', class: 'btn btn-secondary', onClick: () => closeFormPanelAndRoute('#billing') }
-          ]
-        });
-      });
-      actions.appendChild(addBtn);
-      const templatesBtn = el('button', { class: 'btn btn-secondary', text: 'Templates' });
-      templatesBtn.addEventListener('click', () => { this.view = 'templates'; App.handleRoute(); });
-      actions.appendChild(templatesBtn);
-    }
-    const agingBtn = el('button', { class: 'btn btn-secondary', text: 'Aging Report' });
-    agingBtn.addEventListener('click', () => { this.view = 'aging'; App.handleRoute(); });
-    actions.appendChild(agingBtn);
-    if (Auth.can('billing:edit')) {
-      const trashBtn = el('button', { class: 'btn btn-secondary', text: 'Trash' });
-      trashBtn.addEventListener('click', () => { this.view = 'trash'; App.handleRoute(); });
-      actions.appendChild(trashBtn);
-    }
+    // Request Invoice button (operations users)
     if (Auth.can('billing:request')) {
+      const reqActions = el('div', { class: 'actions-bar', style: 'margin-bottom: var(--spacing-md);' });
       const reqBtn = el('button', { class: 'btn btn-primary', text: 'Request Invoice from Accounting' });
       reqBtn.addEventListener('click', () => { Billing.showRequestInvoiceModal(); });
-      actions.appendChild(reqBtn);
+      reqActions.appendChild(reqBtn);
+      wrapper.appendChild(reqActions);
     }
-    wrapper.appendChild(actions);
 
     // Pending operations requests banner
     if (Auth.can('billing:edit')) {
@@ -248,9 +251,9 @@ const Billing = {
 
     const dateFrom = el('input', { type: 'date', class: 'form-select' });
     const dateTo = el('input', { type: 'date', class: 'form-select' });
-    filters.appendChild(el('span', { text: 'From', style: 'font-size:0.875rem;color:var(--color-text-muted);' }));
+    filters.appendChild(el('span', { text: 'From', style: 'font-size:0.8125rem;color:var(--color-text-muted);' }));
     filters.appendChild(wrapFilterFieldWithClear(dateFrom));
-    filters.appendChild(el('span', { text: 'To', style: 'font-size:0.875rem;color:var(--color-text-muted);' }));
+    filters.appendChild(el('span', { text: 'To', style: 'font-size:0.8125rem;color:var(--color-text-muted);' }));
     filters.appendChild(wrapFilterFieldWithClear(dateTo));
 
     const statusFilter = el('select', { class: 'form-select' });
@@ -262,7 +265,7 @@ const Billing = {
 
     const clearBtn = el('button', {
       class: 'btn btn-secondary btn-sm',
-      html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>Clear'
+      html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 .49-3.5"></path></svg>Clear'
     });
     clearBtn.addEventListener('click', () => {
       wrFilter.value = '';
@@ -459,10 +462,6 @@ const Billing = {
   },
 
   refreshBoard(container, invoices) {
-    if (invoices.length === 0) {
-      container.appendChild(el('p', { text: 'No invoices found.', class: 'empty-state' }));
-      return;
-    }
     const board = el('div', { class: 'board-v2' });
     const statuses = ['Draft', 'Pending', 'Approved', 'Sent', 'Partially Paid', 'Paid', 'Overdue'];
     const statusColors = {
@@ -477,15 +476,29 @@ const Billing = {
 
     statuses.forEach(st => {
       const colColor = statusColors[st] || '#cbd5e1';
+      const colInvs = invoices.filter(inv => inv.status === st);
+
       const col = el('div', { class: 'board-column-v2' });
       col.style.setProperty('--column-phase-color', colColor);
 
       const header = el('div', { class: 'board-column-header-v2' });
-      header.appendChild(el('div', { class: 'board-column-title', text: st }));
+      const titleWrap = el('div', { class: 'board-column-title' });
+      titleWrap.appendChild(el('span', { class: 'board-column-dot', style: 'background:' + colColor + ';' }));
+      titleWrap.appendChild(document.createTextNode(st));
+      titleWrap.appendChild(el('span', { class: 'board-column-count', text: String(colInvs.length) }));
+      header.appendChild(titleWrap);
+
+      const addBtnCol = el('button', { class: 'board-column-add', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' });
+      addBtnCol.title = 'Add invoice to ' + st;
+      header.appendChild(addBtnCol);
+
       col.appendChild(header);
 
-      const colInvs = invoices.filter(inv => inv.status === st);
       const cardContainer = el('div', { class: 'board-cards-scroll' });
+
+      if (colInvs.length === 0) {
+        cardContainer.appendChild(el('div', { class: 'empty-state', text: 'No invoices' }));
+      }
 
       colInvs.forEach(inv => {
         const client = DB.getById('clients', inv.clientId);

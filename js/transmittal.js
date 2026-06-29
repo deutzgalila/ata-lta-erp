@@ -229,7 +229,7 @@ const Transmittal = {
 
     const clearBtn = el('button', {
       class: 'btn btn-secondary btn-sm',
-      html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>Clear'
+      html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: middle;"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 .49-3.5"></path></svg>Clear'
     });
     clearBtn.addEventListener('click', () => {
       wrFilter.value = '';
@@ -406,15 +406,22 @@ const Transmittal = {
 
     statuses.forEach(st => {
       const colColor = statusColors[st] || '#cbd5e1';
+      const colItems = items.filter(t => t.status === st);
       const col = el('div', { class: 'board-column-v2' });
       col.style.setProperty('--column-phase-color', colColor);
 
       const header = el('div', { class: 'board-column-header-v2' });
-      header.appendChild(el('div', { class: 'board-column-title', text: st }));
+      const titleWrap = el('div', { class: 'board-column-title' });
+      titleWrap.appendChild(el('span', { class: 'board-column-dot', style: 'background:' + colColor + ';' }));
+      titleWrap.appendChild(document.createTextNode(st));
+      titleWrap.appendChild(el('span', { class: 'board-column-count', text: String(colItems.length) }));
+      header.appendChild(titleWrap);
       col.appendChild(header);
 
-      const colItems = items.filter(t => t.status === st);
       const cardContainer = el('div', { class: 'board-cards-scroll' });
+      if (colItems.length === 0) {
+        cardContainer.appendChild(el('div', { class: 'empty-state', text: 'No transmittals' }));
+      }
 
       colItems.forEach(t => {
         const clientName = this.getClientName(t.clientId);

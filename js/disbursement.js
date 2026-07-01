@@ -24,11 +24,6 @@ const Disbursement = {
       
       const actions = el('div', { class: 'title-bar-actions' });
       if (d) {
-        if (this.canEditDisbursement(d)) {
-          const editBtn = el('button', { class: 'btn btn-primary btn-sm', text: 'Edit', style: 'margin-right:8px;' });
-          editBtn.addEventListener('click', () => { this.showForm(d.id); });
-          actions.appendChild(editBtn);
-        }
         if (d.status === 'Draft' && Auth.can('disbursement:create')) {
           const submitBtn = el('button', { class: 'btn btn-success btn-sm', text: 'Submit Expense', style: 'margin-right:8px;' });
           submitBtn.addEventListener('click', () => {
